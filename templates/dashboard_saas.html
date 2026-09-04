@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% load static %}
 
 {% block title %}FuelSync Dashboard{% endblock %}
@@ -43,6 +43,54 @@
         color: #64748b;
         font-weight: 600;
     }
+
+    .attendance-topbar-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: none;
+        border-radius: 12px;
+        padding: 0.8rem 1.1rem;
+        background: linear-gradient(135deg, #0f172a 0%, #2563eb 100%);
+        color: #fff;
+        font-weight: 700;
+        box-shadow: 0 12px 24px rgba(37, 99, 235, 0.2);
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .attendance-topbar-button.secondary {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        box-shadow: 0 12px 24px rgba(217, 119, 6, 0.2);
+    }
+
+    .attendance-modal-overlay{display:none;position:fixed;inset:0;background:rgba(8,12,24,0.72);z-index:1000;align-items:center;justify-content:center;padding:20px;}
+    .attendance-modal-overlay.open{display:flex;}
+    .attendance-modal{width:min(420px,100%);background:#0f172a;border-radius:20px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,0.45);}
+    .attendance-modal__head{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;color:#fff;}
+    .attendance-modal__head h3{margin:0;font-size:1rem;font-weight:700;}
+    .attendance-modal__close{background:rgba(255,255,255,0.08);border:none;color:#fff;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+    .attendance-video-frame{position:relative;aspect-ratio:4/3;background:#000;overflow:hidden;}
+    .attendance-video-frame video{width:100%;height:100%;object-fit:cover;}
+    .face-guide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+    .face-guide-oval{width:62%;height:78%;border:3px solid rgba(255,255,255,0.55);border-radius:50%;transition:border-color 0.3s ease,box-shadow 0.3s ease;}
+    .face-guide-oval.detected{border-color:#facc15;box-shadow:0 0 0 6px rgba(250,204,21,0.15);}
+    .face-guide-oval.verified{border-color:#22c55e;box-shadow:0 0 0 6px rgba(34,197,94,0.18);}
+    .face-guide-oval.mismatch{border-color:#ef4444;box-shadow:0 0 0 6px rgba(239,68,68,0.18);}
+    .attendance-modal__status.error-text{color:#f87171;}
+    .attendance-retry-btn{display:none;margin-top:14px;border:none;background:rgba(255,255,255,0.1);color:#fff;padding:9px 20px;border-radius:10px;font-weight:700;cursor:pointer;}
+    .attendance-retry-btn.show{display:inline-block;}
+    .attendance-modal__body{padding:22px 24px 26px;text-align:center;color:#fff;}
+    .attendance-modal__status{font-size:0.98rem;font-weight:700;margin:0 0 4px;min-height:1.3em;}
+    .attendance-modal__hint{font-size:0.82rem;color:rgba(255,255,255,0.6);margin:0;min-height:1.2em;}
+    .attendance-success{display:none;flex-direction:column;align-items:center;gap:10px;padding:8px 0 4px;}
+    .attendance-success.show{display:flex;}
+    .attendance-success .check-circle{width:64px;height:64px;border-radius:50%;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:2rem;animation:attendanceCheckPop 0.35s ease;}
+    .attendance-success h4{margin:6px 0 0;font-size:1.1rem;}
+    .attendance-success p{margin:0;font-size:0.85rem;color:rgba(255,255,255,0.7);}
+    .attendance-success .done-btn{margin-top:14px;border:none;background:#16a34a;color:#fff;padding:10px 22px;border-radius:10px;font-weight:700;cursor:pointer;}
+    @keyframes attendanceCheckPop{from{transform:scale(0.6);opacity:0;}to{transform:scale(1);opacity:1;}}
+    .attendance-video-frame.hidden,.attendance-modal__status.hidden,.attendance-modal__hint.hidden{display:none;}
 
     .analytics-panel {
         overflow: hidden;
@@ -134,31 +182,109 @@
         color: #334155;
         border: 1px solid rgba(37, 99, 235, 0.12);
     }
+
+    .dashboard-two-col {
+        display: grid;
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+        gap: 18px;
+        align-items: start;
+    }
+
+    .analytics-stat-cards-col {
+        display: grid;
+        gap: 14px;
+    }
+
+    .operations-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    @media (max-width: 1100px) {
+        .dashboard-two-col { grid-template-columns: 1fr; }
+        .operations-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Mobile sidebar overlay */
+    .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:199;}
+    .sidebar-overlay.open{display:block;}
+    .mobile-topbar-saas{
+        display:none;align-items:center;gap:12px;
+        padding:12px 16px;background:#0f172a;
+        position:sticky;top:0;z-index:100;
+    }
+    .mobile-topbar-saas .mobile-brand{font-size:1rem;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px;}
+    .hamburger-btn-saas{
+        display:grid;place-items:center;width:38px;height:38px;
+        border:none;background:rgba(255,255,255,0.1);cursor:pointer;
+        color:#fff;font-size:1.25rem;border-radius:8px;margin-left:auto;
+    }
+    @media(max-width:900px){
+        .mobile-topbar-saas{display:flex;}
+        .fuelsync-dashboard{display:block !important;}
+        .dashboard-sidebar{
+            position:fixed !important;top:0;left:0;height:100%;width:272px;
+            transform:translateX(-100%);transition:transform 0.26s ease;
+            z-index:200;overflow-y:auto;min-height:unset !important;
+        }
+        .dashboard-sidebar.open{transform:translateX(0);}
+    }
+
 </style>
 {% endblock %}
 
 {% block content %}
+<!-- Mobile topbar (hidden on desktop) -->
+<div class="mobile-topbar-saas">
+    <div class="mobile-brand"><i class="bi bi-fuel-pump-fill"></i> FuelSync</div>
+    <button class="hamburger-btn-saas" id="saasToggle" aria-label="Open navigation" aria-expanded="false" aria-controls="saasSidebar">
+        <i class="bi bi-list"></i>
+    </button>
+</div>
+<div class="sidebar-overlay" id="saasOverlay"></div>
+
 <div class="fuelsync-dashboard">
-    <aside class="dashboard-sidebar">
+    <aside class="dashboard-sidebar" id="saasSidebar">
         <div class="sidebar-brand">
             <div class="brand-mark"><i class="bi bi-fuel-pump-fill"></i></div>
             <div>
                 <strong>FuelSync</strong>
-                <span>Smart fuel station management</span>
+                <span>Smart Fuelcourt Monitoring System</span>
             </div>
         </div>
 
         <nav class="sidebar-nav" aria-label="Dashboard navigation">
-            <a href="{% url 'dashboard' %}" class="sidebar-link active"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
-            <a href="{% url 'buy' %}" class="sidebar-link"><i class="bi bi-cart-plus"></i><span>Buy Fuel</span></a>
-            <a href="{% url 'dashboard_inventory' %}" class="sidebar-link"><i class="bi bi-box-seam"></i><span>Inventory</span></a>
-            <a href="{% url 'dashboard_pumps' %}" class="sidebar-link"><i class="bi bi-fuel-pump"></i><span>Pumps</span></a>
-            <a href="{% url 'dashboard_sales' %}" class="sidebar-link"><i class="bi bi-receipt"></i><span>Sales</span></a>
-            <a href="{% url 'dashboard_customers' %}" class="sidebar-link"><i class="bi bi-people"></i><span>Customers</span></a>
-            <a href="{% url 'dashboard_reports' %}" class="sidebar-link"><i class="bi bi-graph-up-arrow"></i><span>Reports</span></a>
-            <a href="{% url 'dashboard_price_history' %}" class="sidebar-link"><i class="bi bi-clock-history"></i><span>Price History</span></a>
-            <a href="{% url 'dashboard_payments' %}" class="sidebar-link"><i class="bi bi-wallet2"></i><span>Payments</span></a>
-            <a href="{% url 'settings' %}" class="sidebar-link"><i class="bi bi-gear"></i><span>Settings</span></a>
+            {% url 'dashboard' as url_dashboard %}
+            {% url 'buy' as url_buy %}
+            {% url 'dashboard_inventory' as url_inventory %}
+            {% url 'dashboard_pumps' as url_pumps %}
+            {% url 'dashboard_sales' as url_sales %}
+            {% url 'dashboard_customers' as url_customers %}
+            {% url 'dashboard_reports' as url_reports %}
+            {% url 'dashboard_price_history' as url_price_history %}
+            {% url 'dashboard_update_price' as url_update_price %}
+            {% url 'dashboard_payments' as url_payments %}
+            {% url 'dashboard_attendance' as url_attendance %}
+            {% url 'dashboard_my_attendance' as url_my_attendance %}
+            {% url 'dashboard_notifications' as url_notifications %}
+            {% url 'settings' as url_settings %}
+            <a href="{{ url_dashboard }}" class="sidebar-link{% if request.path == url_dashboard %} active{% endif %}"><i class="bi bi-speedometer2"></i><span>Dashboard</span></a>
+            <a href="{{ url_inventory }}" class="sidebar-link{% if request.path == url_inventory %} active{% endif %}"><i class="bi bi-box-seam"></i><span>Inventory</span></a>
+            <a href="{{ url_pumps }}" class="sidebar-link{% if request.path == url_pumps %} active{% endif %}"><i class="bi bi-fuel-pump"></i><span>Pumps</span></a>
+            <a href="{{ url_sales }}" class="sidebar-link{% if request.path == url_sales %} active{% endif %}"><i class="bi bi-receipt"></i><span>Sales</span></a>
+            <a href="{{ url_customers }}" class="sidebar-link{% if request.path == url_customers %} active{% endif %}"><i class="bi bi-people"></i><span>Customers</span></a>
+            <a href="{{ url_reports }}" class="sidebar-link{% if request.path == url_reports %} active{% endif %}"><i class="bi bi-graph-up-arrow"></i><span>Reports</span></a>
+            <a href="{{ url_update_price }}" class="sidebar-link{% if request.path == url_update_price %} active{% endif %}"><i class="bi bi-currency-dollar"></i><span>Update Fuel Price</span></a>
+            <a href="{{ url_price_history }}" class="sidebar-link{% if request.path == url_price_history %} active{% endif %}" style="opacity:0.8;"><i class="bi bi-clock-history"></i><span>Price History</span></a>
+            <a href="{{ url_payments }}" class="sidebar-link{% if request.path == url_payments %} active{% endif %}"><i class="bi bi-wallet2"></i><span>Payments</span></a>
+            {% if user.is_superuser or user.dashboard_profile.role == 'manager' %}
+            <a href="{{ url_attendance }}" class="sidebar-link{% if request.path == url_attendance %} active{% endif %}"><i class="bi bi-camera-video"></i><span>Attendance Kiosk</span></a>
+            {% endif %}
+            <a href="{{ url_my_attendance }}" class="sidebar-link{% if request.path == url_my_attendance %} active{% endif %}"><i class="bi bi-person-check"></i><span>Attendance History</span></a>
+            <a href="{{ url_notifications }}" class="sidebar-link{% if request.path == url_notifications %} active{% endif %}"><i class="bi bi-bell"></i><span>Notifications</span></a>
+            <a href="{{ url_buy }}" class="sidebar-link{% if request.path == url_buy %} active{% endif %}"><i class="bi bi-cart-plus"></i><span>Buy Fuel</span></a>
+            <a href="{{ url_settings }}" class="sidebar-link{% if request.path == url_settings %} active{% endif %}"><i class="bi bi-gear"></i><span>Settings</span></a>
         </nav>
 
         <div class="sidebar-summary">
@@ -206,9 +332,55 @@
                     </div>
                 </div>
 
+                {% if attendance_widget.show %}
+                    {% if attendance_widget.shift_open %}
+                    <button type="button" class="attendance-topbar-button secondary" id="openAttendanceCloseBtn" data-event-type="clock_out">
+                        <i class="bi bi-box-arrow-right"></i><span>Mark Closing Attendance</span>
+                    </button>
+                    {% elif attendance_widget.has_face %}
+                    <button type="button" class="attendance-topbar-button" id="openAttendanceBtn" data-event-type="clock_in">
+                        <i class="bi bi-camera"></i><span>Mark Attendance</span>
+                    </button>
+                    {% else %}
+                    <a href="{% url 'settings' %}" class="attendance-topbar-button"><i class="bi bi-person-plus"></i><span>Register Face</span></a>
+                    {% endif %}
+                {% endif %}
+
                 <a href="{% url 'buy' %}" class="primary-cta"><i class="bi bi-plus-lg"></i><span>New Sale</span></a>
             </div>
         </header>
+
+        {% if attendance_widget.show %}
+        <form id="attendanceCsrfForm" style="display:none;">{% csrf_token %}</form>
+        <div class="attendance-modal-overlay" id="attendanceModalOverlay">
+            <div class="attendance-modal">
+                <div class="attendance-modal__head">
+                    <h3><i class="bi bi-camera-video"></i> <span id="attendanceModalTitle">Face Verification</span></h3>
+                    <button type="button" class="attendance-modal__close" id="attendanceModalClose" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+                </div>
+                <div class="attendance-video-frame" id="attendanceVideoFrame">
+                    <video id="attendanceModalVideo" autoplay playsinline muted></video>
+                    <div class="face-guide"><div class="face-guide-oval" id="faceGuideOval"></div></div>
+                </div>
+                <canvas id="attendanceModalCanvas" style="display:none;"></canvas>
+                <div class="attendance-modal__body">
+                    <p class="attendance-modal__status" id="attendanceModalStatus">Looking for your face…</p>
+                    <p class="attendance-modal__hint" id="attendanceModalHint">Position your face inside the frame.</p>
+                    <button type="button" class="attendance-retry-btn" id="attendanceRetryBtn">Try Again</button>
+
+                    <div class="attendance-success" id="attendanceSuccessBlock">
+                        <div class="check-circle"><i class="bi bi-check-lg"></i></div>
+                        <h4 id="attendanceSuccessTitle">Attendance Marked Successfully</h4>
+                        <p id="attendanceSuccessWelcome"></p>
+                        <p id="attendanceSuccessDate"></p>
+                        <p id="attendanceSuccessTime"></p>
+                        <p>Status: <strong style="color:#22c55e;" id="attendanceSuccessStatusLabel">Present</strong></p>
+                        <button type="button" class="done-btn" id="attendanceDoneBtn">Done</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
 
         {% if has_dashboard_data %}
         <section class="kpi-grid">
@@ -231,35 +403,47 @@
             {% endfor %}
         </section>
 
-        <section class="panel analytics-panel">
-            <div class="panel-head">
-                <div>
-                    <div class="section-tag">Revenue intelligence</div>
-                    <h2>{% if can_view_revenue_analytics %}Revenue analytics by time window{% else %}Today's revenue snapshot{% endif %}</h2>
-                    <p class="panel-caption" style="margin-top: 6px;">
-                        {% if can_view_revenue_analytics %}
-                        Switch between today, 7-day, 30-day, 90-day, and year-to-date performance.
-                        {% else %}
-                        Daily revenue visibility is limited to the current day for attendant access.
-                        {% endif %}
-                    </p>
-                </div>
-                {% if can_view_revenue_analytics %}
-                <div class="analytics-toolbar">
-                    <span class="panel-caption">Change window</span>
-                    <div class="analytics-period-list" role="tablist" aria-label="Revenue analytics period selector">
-                        {% for period_key, period_meta in revenue_chart_periods.items %}
-                        <button type="button" class="analytics-period-button{% if can_view_revenue_analytics and period_key == '30d' or not can_view_revenue_analytics and period_key == 'today' %} active{% endif %}" data-analytics-period="{{ period_key }}">
-                            {{ period_meta.label }}
-                        </button>
-                        {% endfor %}
+        <div class="dashboard-two-col">
+            <section class="panel analytics-panel">
+                <div class="panel-head">
+                    <div>
+                        <div class="section-tag">Revenue intelligence</div>
+                        <h2>{% if can_view_revenue_analytics %}Revenue analytics by time window{% else %}Today's revenue snapshot{% endif %}</h2>
+                        <p class="panel-caption" style="margin-top: 6px;">
+                            {% if can_view_revenue_analytics %}
+                            Switch between today, 7-day, 30-day, 90-day, and year-to-date performance.
+                            {% else %}
+                            Daily revenue visibility is limited to the current day for attendant access.
+                            {% endif %}
+                        </p>
                     </div>
+                    {% if can_view_revenue_analytics %}
+                    <div class="analytics-toolbar">
+                        <span class="panel-caption">Change window</span>
+                        <div class="analytics-period-list" role="tablist" aria-label="Revenue analytics period selector">
+                            {% for period_key, period_meta in revenue_chart_periods.items %}
+                            <button type="button" class="analytics-period-button{% if can_view_revenue_analytics and period_key == '30d' or not can_view_revenue_analytics and period_key == 'today' %} active{% endif %}" data-analytics-period="{{ period_key }}">
+                                {{ period_meta.label }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if not can_view_revenue_analytics %}
+                <div class="analytics-note">
+                    Today's revenue is visible here, but historical revenue analytics are restricted to Admin and Manager roles.
                 </div>
                 {% endif %}
-            </div>
+
+                <div class="chart-shell">
+                    <canvas id="revenueChart" height="160"></canvas>
+                </div>
+            </section>
 
             {% if can_view_revenue_analytics %}
-            <div class="analytics-card-grid">
+            <div class="analytics-stat-cards-col">
                 {% for card in analytics_cards %}
                 <article class="analytics-stat-card analytics-stat-card--{{ card.tone }}">
                     <span>{{ card.label }}</span>
@@ -268,16 +452,8 @@
                 </article>
                 {% endfor %}
             </div>
-            {% else %}
-            <div class="analytics-note">
-                Today’s revenue is visible here, but historical revenue analytics are restricted to Admin and Manager roles.
-            </div>
             {% endif %}
-
-            <div class="chart-shell">
-                <canvas id="revenueChart" height="160"></canvas>
-            </div>
-        </section>
+        </div>
 
         <section class="operations-grid">
             <article class="panel panel--table">
@@ -348,9 +524,9 @@
                         <tbody id="recent-payments-body">
                             {% for payment in recent_payments %}
                             <tr>
-                                <td><strong>{{ payment.reference }}</strong></td>
-                                <td>{{ payment.customer_name }}</td>
-                                <td>GH₵{{ payment.amount|floatformat:0 }}</td>
+                                <td title="{{ payment.reference }}"><strong>{{ payment.reference }}</strong></td>
+                                <td title="{{ payment.customer_name }}">{{ payment.customer_name }}</td>
+                                <td>GH₵{{ payment.amount|floatformat:2 }}</td>
                                 <td>{{ payment.method }}</td>
                                 <td><span class="status-badge status-badge--{{ payment.status|lower }}">{{ payment.status }}</span></td>
                                 <td>{{ payment.time }}</td>
@@ -453,6 +629,271 @@
         statusNode.textContent = `Live data • ${stamp.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
     }
 
+    function renderRecentPayments(payments) {
+        const tbody = document.getElementById('recent-payments-body');
+        if (!tbody) return;
+
+        if (!payments || !payments.length) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No completed payments yet.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = payments.map((p) => `
+            <tr>
+                <td title="${p.reference || ''}"><strong>${p.reference || ''}</strong></td>
+                <td title="${p.customer_name || ''}">${p.customer_name || 'N/A'}</td>
+                <td>GH₵${Number(p.amount || 0).toFixed(2)}</td>
+                <td>${p.method || ''}</td>
+                <td><span class="status-badge status-badge--${String(p.status || '').toLowerCase()}">${p.status || ''}</span></td>
+                <td>${p.time || 'N/A'}</td>
+            </tr>
+        `).join('');
+    }
+
+    function resetAttendanceModalUI(eventType){
+        const overlay = document.getElementById('attendanceModalOverlay');
+        const video = document.getElementById('attendanceModalVideo');
+        const videoFrame = document.getElementById('attendanceVideoFrame');
+        const canvas = document.getElementById('attendanceModalCanvas');
+        const oval = document.getElementById('faceGuideOval');
+        const statusEl = document.getElementById('attendanceModalStatus');
+        const hintEl = document.getElementById('attendanceModalHint');
+        const successBlock = document.getElementById('attendanceSuccessBlock');
+        const modalTitle = document.getElementById('attendanceModalTitle');
+        const successTitle = document.getElementById('attendanceSuccessTitle');
+        const successStatusLabel = document.getElementById('attendanceSuccessStatusLabel');
+        const retryBtn = document.getElementById('attendanceRetryBtn');
+        const copy = {
+            clock_in: { modalTitle: 'Face Verification', successTitle: 'Attendance Marked Successfully', greeting: 'Welcome, ', statusLabel: 'Present', statusColor: '#22c55e' },
+            clock_out: { modalTitle: 'Closing Verification', successTitle: 'Closing Attendance Marked', greeting: 'Goodbye, ', statusLabel: 'Clocked Out', statusColor: '#f59e0b' },
+        };
+        if (!overlay || !video || !videoFrame || !canvas || !oval || !statusEl || !hintEl || !successBlock) return;
+        currentEventType = eventType;
+        stopped = false;
+        successBlock.classList.remove('show');
+        videoFrame.classList.remove('hidden');
+        statusEl.classList.remove('hidden');
+        hintEl.classList.remove('hidden');
+        oval.classList.remove('detected', 'verified', 'mismatch');
+        statusEl.classList.remove('error-text');
+        statusEl.textContent = 'Looking for your face…';
+        hintEl.textContent = 'Position your face inside the frame.';
+        retryBtn.classList.remove('show');
+        modalTitle.textContent = copy[eventType].modalTitle;
+        successTitle.textContent = copy[eventType].successTitle;
+        successStatusLabel.textContent = copy[eventType].statusLabel;
+        successStatusLabel.style.color = copy[eventType].statusColor;
+    }
+
+    function openAttendanceModal(eventType) {
+        const overlay = document.getElementById('attendanceModalOverlay');
+        const video = document.getElementById('attendanceModalVideo');
+        const statusEl = document.getElementById('attendanceModalStatus');
+        const hintEl = document.getElementById('attendanceModalHint');
+        if (!overlay || !video || !statusEl || !hintEl) return;
+        resetAttendanceModalUI(eventType);
+        overlay.classList.add('open');
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true }).then(function(s){
+                stream = s;
+                video.srcObject = s;
+                scheduleAttendancePoll(600);
+            }).catch(function(err){
+                statusEl.textContent = 'Camera unavailable';
+                hintEl.textContent = err.message || 'Please allow camera access and try again.';
+            });
+        } else {
+            statusEl.textContent = 'Camera not supported';
+            hintEl.textContent = 'Try a different browser.';
+        }
+    }
+
+    function closeAttendanceModal(){
+        const overlay = document.getElementById('attendanceModalOverlay');
+        stopped = true;
+        if (attendancePollTimer) { clearTimeout(attendancePollTimer); attendancePollTimer = null; }
+        if (stream) { stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; }
+        if (overlay) overlay.classList.remove('open');
+    }
+
+    function scheduleAttendancePoll(delay){
+        if (stopped) return;
+        attendancePollTimer = setTimeout(captureAndVerifyAttendance, delay);
+    }
+
+    function captureAndVerifyAttendance(){
+        const video = document.getElementById('attendanceModalVideo');
+        const canvas = document.getElementById('attendanceModalCanvas');
+        const oval = document.getElementById('faceGuideOval');
+        const statusEl = document.getElementById('attendanceModalStatus');
+        const hintEl = document.getElementById('attendanceModalHint');
+        const retryBtn = document.getElementById('attendanceRetryBtn');
+        const successBlock = document.getElementById('attendanceSuccessBlock');
+        const csrfInput = document.querySelector('#attendanceCsrfForm [name=csrfmiddlewaretoken]');
+        const csrftoken = csrfInput ? csrfInput.value : '';
+        if (stopped || busy || !video || !canvas || !oval || !statusEl || !hintEl || !successBlock) return;
+        if (!video.videoWidth) { scheduleAttendancePoll(500); return; }
+
+        busy = true;
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        statusEl.textContent = 'Analyzing…';
+
+        fetch('{% url "dashboard_attendance_self_mark" %}', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
+            credentials: 'same-origin',
+            body: JSON.stringify({image: dataUrl, event_type: currentEventType}),
+        }).then(function(r){ return r.json(); }).then(function(result){
+            busy = false;
+            if (stopped) return;
+
+            if (result.status === 'success') {
+                oval.classList.remove('detected');
+                oval.classList.add('verified');
+                statusEl.textContent = 'Identity verified';
+                hintEl.textContent = '';
+                setTimeout(function(){
+                    document.getElementById('attendanceVideoFrame').classList.add('hidden');
+                    statusEl.classList.add('hidden');
+                    hintEl.classList.add('hidden');
+                    document.getElementById('attendanceSuccessWelcome').textContent = (result.event_type === 'clock_in' ? 'Welcome, ' : 'Goodbye, ') + result.staff_name;
+                    document.getElementById('attendanceSuccessDate').textContent = 'Date: ' + result.date;
+                    document.getElementById('attendanceSuccessTime').textContent = 'Time: ' + result.time;
+                    successBlock.classList.add('show');
+                    updateAttendanceButtonState(result.event_type);
+                    stopped = true;
+                    if (stream) { stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; }
+                    setTimeout(closeAttendanceModal, 3500);
+                }, 700);
+                return;
+            }
+
+            if (result.status === 'already_marked') {
+                statusEl.textContent = result.event_type === 'clock_out' ? 'You have already clocked out' : 'You are already clocked in';
+                hintEl.textContent = 'At ' + result.time;
+                updateAttendanceButtonState(result.event_type);
+                stopped = true;
+                setTimeout(closeAttendanceModal, 2200);
+                return;
+            }
+
+            if (result.status === 'not_clocked_in') {
+                statusEl.textContent = 'You have not clocked in yet';
+                hintEl.textContent = 'Mark your morning attendance first.';
+                stopped = true;
+                setTimeout(closeAttendanceModal, 2200);
+                return;
+            }
+
+            if (result.status === 'no_face_registered') {
+                statusEl.textContent = 'No face registered';
+                hintEl.textContent = 'Please register your face before marking attendance.';
+                stopped = true;
+                setTimeout(closeAttendanceModal, 2200);
+                return;
+            }
+
+            const reason = result.reason;
+            if (reason === 'no_face_detected') {
+                oval.classList.remove('detected', 'verified', 'mismatch');
+                statusEl.textContent = 'Looking for your face…';
+                hintEl.textContent = 'Position your face inside the frame.';
+                scheduleAttendancePoll(1200);
+                return;
+            }
+
+            stopped = true;
+            oval.classList.remove('detected', 'verified');
+            oval.classList.add('mismatch');
+            statusEl.classList.add('error-text');
+            statusEl.textContent = 'Face does not match your registered photo';
+            hintEl.textContent = reason === 'identity_mismatch' ? 'This face is registered to a different account.' : 'Please try again with better lighting, facing the camera directly.';
+            retryBtn.classList.add('show');
+        }).catch(function(){
+            busy = false;
+            if (stopped) return;
+            statusEl.textContent = 'Connection issue — retrying…';
+            scheduleAttendancePoll(1500);
+        });
+    }
+
+    function updateAttendanceButtonState(eventType) {
+        const topbarActions = document.querySelector('.topbar-actions');
+        if (!topbarActions) return;
+
+        const existingOpen = topbarActions.querySelector('#openAttendanceBtn');
+        const existingClose = topbarActions.querySelector('#openAttendanceCloseBtn');
+        if (existingOpen) existingOpen.remove();
+        if (existingClose) existingClose.remove();
+
+        const nextState = eventType === 'clock_in'
+            ? {
+                id: 'openAttendanceCloseBtn',
+                className: 'attendance-topbar-button secondary',
+                label: 'Mark Closing Attendance',
+                icon: 'bi bi-box-arrow-right',
+                action: 'clock_out'
+            }
+            : {
+                id: 'openAttendanceBtn',
+                className: 'attendance-topbar-button',
+                label: 'Mark Attendance',
+                icon: 'bi bi-camera',
+                action: 'clock_in'
+            };
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.id = nextState.id;
+        button.className = nextState.className;
+        button.dataset.eventType = nextState.action;
+        button.innerHTML = `<i class="${nextState.icon}"></i><span>${nextState.label}</span>`;
+        button.addEventListener('click', function(){ openAttendanceModal(nextState.action); });
+
+        const saleButton = topbarActions.querySelector('.primary-cta');
+        if (saleButton) {
+            topbarActions.insertBefore(button, saleButton);
+        } else {
+            topbarActions.appendChild(button);
+        }
+    }
+
+    function applyAttendanceBindings(){
+        const openBtn = document.getElementById('openAttendanceBtn');
+        const closeBtn = document.getElementById('openAttendanceCloseBtn');
+        const modalClose = document.getElementById('attendanceModalClose');
+        const retryBtn = document.getElementById('attendanceRetryBtn');
+        const doneBtn = document.getElementById('attendanceDoneBtn');
+        if (openBtn) openBtn.addEventListener('click', function(){ openAttendanceModal('clock_in'); });
+        if (closeBtn) closeBtn.addEventListener('click', function(){ openAttendanceModal('clock_out'); });
+        if (modalClose) modalClose.addEventListener('click', closeAttendanceModal);
+        if (retryBtn) retryBtn.addEventListener('click', function(){
+            const oval = document.getElementById('faceGuideOval');
+            const statusEl = document.getElementById('attendanceModalStatus');
+            const hintEl = document.getElementById('attendanceModalHint');
+            const retryBtnEl = document.getElementById('attendanceRetryBtn');
+            if (oval) oval.classList.remove('mismatch');
+            if (statusEl) statusEl.classList.remove('error-text');
+            if (statusEl) statusEl.textContent = 'Looking for your face…';
+            if (hintEl) hintEl.textContent = 'Position your face inside the frame.';
+            if (retryBtnEl) retryBtnEl.classList.remove('show');
+            stopped = false;
+            scheduleAttendancePoll(300);
+        });
+        if (doneBtn) doneBtn.addEventListener('click', closeAttendanceModal);
+    }
+
+    let stream = null;
+    let attendancePollTimer = null;
+    let busy = false;
+    let stopped = false;
+    let currentEventType = 'clock_in';
+
+    applyAttendanceBindings();
+
     function applyLiveStats(data) {
         if (!data || data.status !== 'success' || !data.kpis) return;
 
@@ -463,6 +904,7 @@
         updateKpiValue('active_pumps', data.kpis.active_pumps);
         updateKpiValue('pending_payments', data.kpis.pending_payments);
         renderRecentTransactions(data.recent_transactions || []);
+        renderRecentPayments(data.recent_payments || []);
         updateLiveStatus(data);
         if (data.signature) {
             currentLiveSignature = data.signature;
@@ -655,5 +1097,18 @@
     pollDashboardUpdates();
     setInterval(tickClock, 60000);
     setInterval(pollDashboardUpdates, 3000);
+
+    // Mobile sidebar toggle
+    (function(){
+        var btn=document.getElementById('saasToggle');
+        var sidebar=document.getElementById('saasSidebar');
+        var overlay=document.getElementById('saasOverlay');
+        function openSidebar(){sidebar.classList.add('open');overlay.classList.add('open');btn.setAttribute('aria-expanded','true');document.body.style.overflow='hidden';}
+        function closeSidebar(){sidebar.classList.remove('open');overlay.classList.remove('open');btn.setAttribute('aria-expanded','false');document.body.style.overflow='';}
+        if(btn) btn.addEventListener('click',function(){sidebar.classList.contains('open')?closeSidebar():openSidebar();});
+        if(overlay) overlay.addEventListener('click',closeSidebar);
+        if(sidebar) sidebar.querySelectorAll('a').forEach(function(a){a.addEventListener('click',closeSidebar);});
+    })();
 </script>
+
 {% endblock %}

@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.backends import ModelBackend
+from .forms import normalize_ghana_phone
 
 User = get_user_model()
 
@@ -12,7 +13,7 @@ class PhoneAuthenticationBackend(ModelBackend):
         try:
             # Try to find user by phone number in UserProfile
             from .models import UserProfile
-            profile = UserProfile.objects.get(phone=username)
+            profile = UserProfile.objects.get(phone=normalize_ghana_phone(username))
             user = profile.user
             
             if user.check_password(password) and self.user_can_authenticate(user):

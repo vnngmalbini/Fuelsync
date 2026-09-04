@@ -1,41 +1,180 @@
-{% extends 'base.html' %}
+{% extends 'dashboard_layout.html' %}
 
 {% block title %}Sales - FuelSync{% endblock %}
 
-{% block content %}
-<div class="container" style="padding: 2rem 0;">
-    <h1>Sales</h1>
-    <p>Total sales: <strong>{{ total_count }}</strong> | Revenue: <strong>GH₵{{ total_revenue|floatformat:2 }}</strong> | Liters: <strong>{{ total_liters|floatformat:2 }}</strong></p>
+{% block page_content %}
+<style>
+    .sales-container {
+        padding: 2rem 0;
+    }
+    
+    .sales-header {
+        margin-bottom: 1.5rem;
+    }
+    
+    .sales-header h1 {
+        margin: 0;
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+    
+    /* Fixed height table with internal scroll */
+    .table-wrapper {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        
+        /* Stretch to fill entire viewport height */
+        max-height: calc(100vh - 180px);
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Make table scrollable internally */
+    .table-scroll {
+        overflow-y: auto;
+        overflow-x: auto;
+        flex: 1;
+    }
+    
+    /* Keep header sticky */
+    .table-scroll table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .table-scroll thead {
+        background: #f9fafb;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .table-scroll th {
+        padding: 0.75rem;
+        text-align: left;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 2px solid #d1d5db;
+        background: #f9fafb;
+    }
+    
+    .table-scroll tbody tr {
+        border-top: 1px solid #e5e7eb;
+        transition: background 0.15s ease;
+    }
+    
+    .table-scroll tbody tr:hover {
+        background: #f9fafb;
+    }
+    
+    .table-scroll td {
+        padding: 0.75rem;
+        color: #1f2937;
+    }
+    
+    /* Scrollbar styling */
+    .table-scroll::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    
+    .table-scroll::-webkit-scrollbar-track {
+        background: #f3f4f6;
+    }
+    
+    .table-scroll::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 4px;
+    }
+    
+    .table-scroll::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+    }
+    
+    /* Firefox scrollbar */
+    .table-scroll {
+        scrollbar-color: #d1d5db #f3f4f6;
+        scrollbar-width: thin;
+    }
+    
+    .empty-message {
+        padding: 2rem;
+        text-align: center;
+        color: #6b7280;
+    }
+</style>
 
-    <div style="overflow-x: auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;">
-        <table style="width: 100%; border-collapse: collapse;">
-            <thead style="background: #f9fafb;">
-                <tr>
-                    <th style="padding: 0.75rem; text-align: left;">Transaction ID</th>
-                    <th style="padding: 0.75rem; text-align: left;">Fuel</th>
-                    <th style="padding: 0.75rem; text-align: left;">Pump</th>
-                    <th style="padding: 0.75rem; text-align: left;">Customer</th>
-                    <th style="padding: 0.75rem; text-align: left;">Amount</th>
-                    <th style="padding: 0.75rem; text-align: left;">Date</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for sale in sales %}
-                <tr style="border-top: 1px solid #e5e7eb;">
-                    <td style="padding: 0.75rem;">{{ sale.transaction_id }}</td>
-                    <td style="padding: 0.75rem;">{{ sale.fuel_type.get_name_display }}</td>
-                    <td style="padding: 0.75rem;">{{ sale.pump.pump_number }}</td>
-                    <td style="padding: 0.75rem;">{% if sale.customer %}{{ sale.customer.first_name }} {{ sale.customer.last_name }}{% else %}Walk-in{% endif %}</td>
-                    <td style="padding: 0.75rem;">GH₵{{ sale.total_amount|floatformat:2 }}</td>
-                    <td style="padding: 0.75rem;">{{ sale.created_at|date:"Y-m-d H:i" }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" style="padding: 1rem; text-align: center; color: #6b7280;">No completed sales found.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<div class="sales-container">
+    <div class="sales-header">
+        <h1>Sales</h1>
+        <p style="color: #64748b; margin: 0.35rem 0 0;">Completed non-LPG sales, newest first.</p>
+    </div>
+
+    <section style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.25rem;">
+        <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem;">
+            <div style="color: #64748b; font-size: 0.8rem;">COMPLETED SALES</div>
+            <strong style="display: block; margin-top: 0.35rem; font-size: 1.5rem;">{{ total_count }}</strong>
+        </div>
+        <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem;">
+            <div style="color: #64748b; font-size: 0.8rem;">TOTAL LITRES</div>
+            <strong style="display: block; margin-top: 0.35rem; font-size: 1.5rem;">{{ total_liters|floatformat:2 }} L</strong>
+        </div>
+        <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem;">
+            <div style="color: #64748b; font-size: 0.8rem;">TOTAL REVENUE</div>
+            <strong style="display: block; margin-top: 0.35rem; font-size: 1.5rem;">GH₵{{ total_revenue|floatformat:2 }}</strong>
+        </div>
+    </section>
+
+    <section style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem;">
+        {% for fuel in fuel_totals %}
+        <div style="background: #eef4ff; border: 1px solid #d8e2ee; border-radius: 8px; padding: 0.7rem 1rem; min-width: 150px;">
+            <strong>{{ fuel.name }}</strong><br>
+            <span style="color: #64748b; font-size: 0.85rem;">{{ fuel.count }} sales | GH₵{{ fuel.revenue|floatformat:2 }}</span>
+        </div>
+        {% endfor %}
+    </section>
+
+    <div class="table-wrapper">
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="padding: 0.75rem; text-align: left;">Transaction ID</th>
+                        <th style="padding: 0.75rem; text-align: left;">Fuel Type</th>
+                        <th style="padding: 0.75rem; text-align: left;">Pump</th>
+                        <th style="padding: 0.75rem; text-align: left;">Customer</th>
+                        <th style="padding: 0.75rem; text-align: left;">Litres</th>
+                        <th style="padding: 0.75rem; text-align: left;">Amount</th>
+                        <th style="padding: 0.75rem; text-align: left;">Payment</th>
+                        <th style="padding: 0.75rem; text-align: left;">Status</th>
+                        <th style="padding: 0.75rem; text-align: left;">Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sale in sales %}
+                    <tr>
+                        <td style="padding: 0.75rem;">{{ sale.transaction_id }}</td>
+                        <td style="padding: 0.75rem;">{% if sale.fuel_type %}{{ sale.fuel_type.get_name_display }}{% else %}Not assigned{% endif %}</td>
+                        <td style="padding: 0.75rem;">{% if sale.pump %}{{ sale.pump.pump_number }}{% else %}Not assigned{% endif %}</td>
+                        <td style="padding: 0.75rem;">{% if sale.customer %}{{ sale.customer.first_name }} {{ sale.customer.last_name }}{% else %}Walk-in{% endif %}</td>
+                        <td style="padding: 0.75rem;">{{ sale.liters_dispensed|floatformat:2 }} L</td>
+                        <td style="padding: 0.75rem;">GH₵{{ sale.total_amount|floatformat:2 }}</td>
+                        <td style="padding: 0.75rem; text-transform: capitalize;">{{ sale.payment_method|default:'Not recorded' }}</td>
+                        <td style="padding: 0.75rem; text-transform: capitalize; color: #15803d;">{{ sale.status }}</td>
+                        <td style="padding: 0.75rem;">{{ sale.created_at|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="empty-message">No completed sales found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}

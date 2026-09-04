@@ -35,6 +35,7 @@
 
 body.dashboard-page {
     background: var(--bg);
+    overflow-x: hidden;
 }
 
 .fuelsync-dashboard {
@@ -500,8 +501,13 @@ body.dashboard-page {
 
 .dashboard-table-wrap {
     border-radius: 16px;
-    overflow: hidden;
+    overflow-x: auto;
     border: 1px solid var(--border);
+}
+
+.dashboard-table {
+    min-width: 560px;
+    width: 100%;
 }
 
 .dashboard-table thead {
@@ -509,11 +515,31 @@ body.dashboard-page {
     color: #fff;
 }
 
+/* Round the header corners so the wrapper border-radius still looks right */
+.dashboard-table thead tr th:first-child { border-radius: 14px 0 0 0; }
+.dashboard-table thead tr th:last-child  { border-radius: 0 14px 0 0; }
+
+/* Round the last row's corners */
+.dashboard-table tbody tr:last-child td:first-child { border-radius: 0 0 0 14px; }
+.dashboard-table tbody tr:last-child td:last-child  { border-radius: 0 0 14px 0; }
+
 .dashboard-table th,
 .dashboard-table td {
-    padding: 14px 16px;
-    font-size: 0.92rem;
+    padding: 12px 14px;
+    font-size: 0.88rem;
     border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+/* Reference column: allow truncation with tooltip rather than hard clip */
+.dashboard-table td:first-child {
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dashboard-table tbody tr:last-child td {
+    border-bottom: none;
 }
 
 .dashboard-table tbody tr:hover {

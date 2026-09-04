@@ -275,8 +275,13 @@
     <script src="https://js.paystack.co/v1/inline.js"></script>
     <script>
         let verificationAttempts = 0;
-        const maxAttempts = 20;
+        const maxAttempts = 120;
         let paymentWindowOpen = false;
+        let autoPollingStarted = false;
+        const paymentReference = '{{ reference|escapejs }}';
+        const verifyApiUrl = '{{ verify_api_url|default:"/payment/verify-api/"|escapejs }}';
+        const dashboardUrl = '{{ dashboard_url|default:"/dashboard/"|escapejs }}';
+        const successBaseUrl = '/payment/success/';
 
         function payWithPaystack() {
             console.log('Payment initiated');
@@ -290,7 +295,7 @@
                 // If the customer is on a mobile device, open the Paystack `authorization_url`
                 // in a new tab/window as a fallback to trigger mobile-money prompts reliably.
                 // Opening here is allowed because this function runs on a user click.
-                const authUrlFallback = '{{ authorization_url }}';
+                const authUrlFallback = '{{ authorization_url|escapejs }}';
                 const isMobile = /Mobi|Android|iPhone|iPad|iPod|Windows Phone/i.test(navigator.userAgent);
 
                 if (isMobile && authUrlFallback) {
@@ -303,19 +308,19 @@
                 }
 
                 const handler = PaystackPop.setup({
-                key: '{{ public_key }}',
-                email: '{{ email }}',
+                key: '{{ public_key|escapejs }}',
+                email: '{{ email|escapejs }}',
                 amount: parseInt('{{ amount_in_pesewas|default:"0" }}', 10),
-                ref: '{{ reference }}',
-                phone: '{{ phone }}',
+                ref: '{{ reference|escapejs }}',
+                phone: '{{ phone|escapejs }}',
                 channels: ['mobile_money'],
                 currency: 'GHS',
                 label: 'FuelSync Payment',
                 metadata: {
-                    phone: '{{ phone }}',
-                    phone_display: '{{ phone_display }}',
-                    liters: '{{ liters|default:"" }}',
-                    fuel_type: '{{ fuel_type|default:"" }}'
+                    phone: '{{ phone|escapejs }}',
+                    phone_display: '{{ phone_display|escapejs }}',
+                    liters: '{{ liters|default:""|escapejs }}',
+                    fuel_type: '{{ fuel_type|default:""|escapejs }}'
                 },
                 onClose: function() {
                     console.log('Payment window closed');
@@ -323,7 +328,7 @@
                     document.getElementById('status3').textContent = 'Payment window closed. Checking transaction status...';
                     document.getElementById('status3').className = 'status pending';
                     
-                    verifyPaymentStatus('{{ reference }}');
+                    verifyPaymentStatus(paymentReference);
                 },
                 callback: function(response) {
                     console.log('Payment callback:', response);
@@ -331,7 +336,7 @@
                     document.getElementById('status3').textContent = 'Payment successful! Processing...';
                     document.getElementById('status3').className = 'status success';
                     
-                    verifyPaymentStatus('{{ reference }}');
+                    verifyPaymentStatus(paymentReference);
                 }
             });
             handler.openIframe();
@@ -346,7 +351,7 @@
             document.getElementById('status3').textContent = `Verifying payment (attempt ${verificationAttempts}/${maxAttempts})...`;
             document.getElementById('status3').className = 'status pending';
             
-            fetch('/payment/verify-api/?reference=' + encodeURIComponent(reference), {
+            fetch(verifyApiUrl + '?reference=' + encodeURIComponent(reference), {
                 headers: {
                     'Accept': 'application/json'
                 },
@@ -371,15 +376,17 @@
                         document.getElementById('spinner3').style.display = 'none';
                         document.getElementById('status3').textContent = 'Payment verified successfully! Redirecting...';
                         document.getElementById('status3').className = 'status success';
-                        
+
                         setTimeout(function() {
-                            window.location.href = '/payment/verify/?reference=' + reference;
+                            const ref = data.reference || reference || paymentReference;
+                            window.location.href = successBaseUrl + (ref ? '?reference=' + encodeURIComponent(ref) : '');
                         }, 1000);
                     } else {
                         const message = String(data.message || '').toLowerCase();
-                        const isPending = message.includes('pending') || message.includes('processing') || message.includes('queued');
+                        const isTerminalFailure = message.includes('failed') || message.includes('cancel') || message.includes('reversed') || message.includes('declined');
+                        const shouldRetry = !isTerminalFailure;
 
-                        if (verificationAttempts < maxAttempts && isPending) {
+                        if (verificationAttempts < maxAttempts && shouldRetry) {
                             document.getElementById('status3').textContent = `Payment pending. Rechecking in 3s (${verificationAttempts}/${maxAttempts})...`;
                             document.getElementById('status3').className = 'status pending';
                             setTimeout(() => verifyPaymentStatus(reference), 3000);
@@ -412,6 +419,50 @@
                 window.location.href = '/home/';
             }
         }
+
+        function startQrAutoPolling() {
+            if (autoPollingStarted || !paymentReference) {
+                return;
+            }
+            autoPollingStarted = true;
+            document.getElementById('step1').classList.remove('active');
+            document.getElementById('step3').classList.add('active');
+            document.getElementById('spinner3').style.display = 'block';
+            document.getElementById('status3').textContent = 'Waiting for QR payment confirmation...';
+            document.getElementById('status3').className = 'status pending';
+
+            setTimeout(() => verifyPaymentStatus(paymentReference), 3000);
+        }
+
+        // Silent background poll — detects payment even when the user paid via
+        // the external Paystack URL or QR code (manual polling may never start).
+        let bgRedirected = false;
+        function bgPoll() {
+            if (bgRedirected) return;
+            fetch(verifyApiUrl + '?reference=' + encodeURIComponent(paymentReference), {
+                headers: { 'Accept': 'application/json' },
+                cache: 'no-store'
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (bgRedirected) return;
+                if (data.status) {
+                    bgRedirected = true;
+                    document.getElementById('step1').classList.remove('active');
+                    document.getElementById('step3').classList.add('active');
+                    document.getElementById('spinner3').style.display = 'none';
+                    document.getElementById('status3').textContent = 'Payment verified! Redirecting...';
+                    document.getElementById('status3').className = 'status success';
+                    var ref = data.reference || paymentReference;
+                    window.location.href = successBaseUrl + (ref ? '?reference=' + encodeURIComponent(ref) : '');
+                } else {
+                    setTimeout(bgPoll, 2000);
+                }
+            })
+            .catch(function() { setTimeout(bgPoll, 2000); });
+        }
+        // Start first check after 10 s — gives the user time to initiate payment.
+        if (paymentReference) setTimeout(bgPoll, 10000);
     </script>
 </body>
 </html>

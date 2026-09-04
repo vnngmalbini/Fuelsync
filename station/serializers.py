@@ -126,13 +126,9 @@ class NotificationSerializer(serializers.ModelSerializer):
 
 
 class FuelPriceHistorySerializer(serializers.ModelSerializer):
-    fuel_name = serializers.CharField(source='fuel_type.get_name_display', read_only=True)
-    changed_by_name = serializers.CharField(source='changed_by.user.get_full_name', read_only=True)
-    
     class Meta:
         model = FuelPriceHistory
-        fields = ['id', 'fuel_type', 'fuel_name', 'old_price', 'new_price', 'changed_by',
-                  'changed_by_name', 'reason', 'created_at']
+        fields = ['id', 'diesel', 'petrol', 'super', 'current_rate', 'created_at']
         read_only_fields = ['created_at']
 
 

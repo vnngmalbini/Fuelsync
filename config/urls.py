@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import path, include
+from django.views.generic import RedirectView
 from django.contrib.auth import views as auth_views
 from dashboard.views import signup, PhoneLoginView, logout_view
 from django.conf import settings
@@ -10,6 +11,8 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, Sp
 from station.views import home, server_output_page, server_output_stream
 
 urlpatterns = [
+    # Serve favicon at site root so browsers find it at /favicon.ico
+    path('favicon.ico', RedirectView.as_view(url=settings.STATIC_URL + 'images/favicon.ico', permanent=True)),
     path('admin/', admin.site.urls),
     # API Documentation
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),

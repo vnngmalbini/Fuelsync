@@ -1,15 +1,43 @@
-{% extends 'base.html' %}
+{% extends 'dashboard_layout.html' %}
+{% load static %}
 
-{% block title %}Buy Fuel | FuelSync{% endblock %}
+{% block title %}Buy Fuel - FuelSync{% endblock %}
 
-{% block body_class %}shell{% endblock %}
-
-{% block extra_css %}
-    {% load static %}
+{% block dashboard_extra_css %}
     <link rel="stylesheet" href="{% static 'css/ui-base.css' %}">
     <link rel="stylesheet" href="{% static 'css/fuelsync-pages.css' %}">
     <link rel="stylesheet" href="{% static 'css/professional-polish.css' %}">
     <style>
+        .dashboard-main {
+            align-content: start;
+            grid-auto-rows: max-content;
+        }
+
+        .hero {
+            min-height: 0;
+            height: fit-content;
+            align-self: start;
+            padding: 10px 18px 12px;
+        }
+
+        .hero .eyebrow {
+            font-size: 0.7rem;
+            line-height: 1.1;
+        }
+
+        .hero h1 {
+            margin: 0;
+            font-size: 1.3rem;
+            line-height: 1.15;
+        }
+
+        .hero p {
+            margin: 4px 0 0;
+            max-width: none;
+            font-size: 0.82rem;
+            line-height: 1.3;
+        }
+
         select {
             appearance: none;
             -webkit-appearance: none;
@@ -19,6 +47,23 @@
             background-repeat: no-repeat;
             background-position: right 16px center;
             background-size: 14px 14px;
+        }
+
+        .fuel-select-wrap {
+            position: relative;
+        }
+
+        .fuel-select-wrap::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            width: 8px;
+            height: 8px;
+            border-right: 2px solid #0f1724;
+            border-bottom: 2px solid #0f1724;
+            transform: translateY(-65%) rotate(45deg);
+            pointer-events: none;
         }
 
         .result {
@@ -73,7 +118,7 @@
 
         .buy-workspace {
             display: grid;
-            grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.95fr);
+            grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.95fr);
             gap: 20px;
             align-items: start;
         }
@@ -81,6 +126,11 @@
         .buy-form,
         .summary-panel {
             min-width: 0;
+        }
+
+        @media (max-width: 640px) {
+            .buy-workspace { grid-template-columns: 1fr; }
+            .summary-panel { position: static; }
         }
 
         .summary-panel {
@@ -227,7 +277,7 @@
         }
 
         @media (max-width: 900px) {
-            .hero { padding: 16px; }
+            .hero { padding: 4px 12px 2px; }
             h1 { font-size: 1.35rem; }
             .price-display { grid-template-columns: 1fr; }
         }
@@ -309,7 +359,7 @@
     </style>
 {% endblock %}
 
-{% block content %}
+{% block page_content %}
     <div class="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
 
     <section class="hero">
@@ -334,10 +384,9 @@
 
                 <div class="form-group">
                     <label for="fuelType">Fuel Type</label>
-                    <select id="fuelType" aria-label="Fuel type">
-                        <option value="13.25" data-fuel-type="petrol">Petrol - GHS 13.25/L</option>
-                        <option value="15.55" data-fuel-type="diesel">Diesel - GHS 15.55/L</option>
-                    </select>
+                    <div class="fuel-select-wrap">
+                        <select id="fuelType" aria-label="Fuel type"></select>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -388,7 +437,10 @@
 {% endblock %}
 
 {% block extra_js %}
+    {{ fuel_type_data|json_script:"fuel-type-data" }}
     <script>
+        const fuelTypeData = JSON.parse(document.getElementById("fuel-type-data").textContent);
+
         const modeAmount = document.getElementById("modeAmount");
         const modeLitres = document.getElementById("modeLitres");
         const valueLabel = document.getElementById("valueLabel");
@@ -404,6 +456,28 @@
         const phoneError = document.getElementById("phoneError");
         const payBtnText = document.getElementById("payBtnText");
         const toastWrap = document.getElementById("toastWrap");
+
+        function populateFuelOptions() {
+            fuelType.innerHTML = "";
+
+            if (!fuelTypeData.length) {
+                fuelType.innerHTML = '<option value="">No fuel types available</option>';
+                return;
+            }
+
+            fuelTypeData.forEach(function(item, index) {
+                const option = document.createElement("option");
+                option.value = item.value;
+                option.textContent = item.label;
+                option.dataset.fuelType = item.fuelType;
+                if (index === 0) {
+                    option.selected = true;
+                }
+                fuelType.appendChild(option);
+            });
+        }
+
+        populateFuelOptions();
 
         function showToast(message, tone) {
             const toast = document.createElement("div");

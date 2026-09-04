@@ -1,17 +1,55 @@
-{% extends 'base.html' %}
+{% extends 'dashboard_layout.html' %}
 
 {% block title %}Reports - FuelSync{% endblock %}
 
-{% block content %}
+{% block page_content %}
 <div class="container" style="padding: 2rem 0;">
     <h1>Reports</h1>
-    <p>
-        Today's revenue: <strong>GH₵{{ today_revenue|floatformat:2 }}</strong>
-        | Today's liters sold: <strong>{{ today_liters|floatformat:2 }} L</strong>
-        | Today's transactions: <strong>{{ today_transactions }}</strong>
-    </p>
+    <p style="color: #64748b; margin-top: -0.5rem;">Completed non-LPG sales. Revenue is based on recorded transactions.</p>
 
-    <div style="overflow-x: auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;">
+    <section style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1.25rem 0;">
+        <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1rem;">
+            <div style="color: #64748b; font-size: 0.8rem;">TODAY'S TRANSACTIONS</div>
+            <strong style="display: block; margin-top: 0.35rem; font-size: 1.5rem;">{{ today_transactions }}</strong>
+        </div>
+        <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1rem;">
+            <div style="color: #64748b; font-size: 0.8rem;">TODAY'S LITRES SOLD</div>
+            <strong style="display: block; margin-top: 0.35rem; font-size: 1.5rem;">{{ today_liters|floatformat:2 }} L</strong>
+        </div>
+        <div style="background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1rem;">
+            <div style="color: #64748b; font-size: 0.8rem;">TODAY'S REVENUE</div>
+            <strong style="display: block; margin-top: 0.35rem; font-size: 1.5rem;">GH₵{{ today_revenue|floatformat:2 }}</strong>
+        </div>
+    </section>
+
+    <section style="background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 1.25rem; overflow-x: auto;">
+        <div style="padding: 1rem 1rem 0;"><h2 style="font-size: 1.1rem; margin: 0;">Today's Sales by Fuel Type</h2></div>
+        <table style="width: 100%; border-collapse: collapse; margin-top: 0.75rem;">
+            <thead style="background: #f9fafb;">
+                <tr>
+                    <th style="padding: 0.75rem; text-align: left;">Fuel Type</th>
+                    <th style="padding: 0.75rem; text-align: left;">Transactions</th>
+                    <th style="padding: 0.75rem; text-align: left;">Litres Sold</th>
+                    <th style="padding: 0.75rem; text-align: left;">Revenue</th>
+                    <th style="padding: 0.75rem; text-align: left;">Average Price/L</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fuel in fuel_breakdown %}
+                <tr style="border-top: 1px solid #e5e7eb;">
+                    <td style="padding: 0.75rem; font-weight: 600;">{{ fuel.name }}</td>
+                    <td style="padding: 0.75rem;">{{ fuel.transactions }}</td>
+                    <td style="padding: 0.75rem;">{{ fuel.liters|floatformat:2 }} L</td>
+                    <td style="padding: 0.75rem;">GH₵{{ fuel.revenue|floatformat:2 }}</td>
+                    <td style="padding: 0.75rem;">GH₵{{ fuel.average_price|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <section style="overflow-x: auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;">
+        <div style="padding: 1rem 1rem 0;"><h2 style="font-size: 1.1rem; margin: 0;">Daily Revenue History</h2><p style="color: #64748b; margin: 0.35rem 0 0;">Completed sales grouped by day. Profit is not shown because operating costs are not recorded.</p></div>
         <table style="width: 100%; border-collapse: collapse;">
             <thead style="background: #f9fafb;">
                 <tr>
@@ -19,7 +57,6 @@
                     <th style="padding: 0.75rem; text-align: left;">Transactions</th>
                     <th style="padding: 0.75rem; text-align: left;">Liters Sold</th>
                     <th style="padding: 0.75rem; text-align: left;">Revenue</th>
-                    <th style="padding: 0.75rem; text-align: left;">Profit</th>
                 </tr>
             </thead>
             <tbody>
@@ -29,15 +66,14 @@
                     <td style="padding: 0.75rem;">{{ report.total_transactions }}</td>
                     <td style="padding: 0.75rem;">{{ report.total_liters_sold|floatformat:2 }}</td>
                     <td style="padding: 0.75rem;">GH₵{{ report.total_revenue|floatformat:2 }}</td>
-                    <td style="padding: 0.75rem;">GH₵{{ report.profit|floatformat:2 }}</td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" style="padding: 1rem; text-align: center; color: #6b7280;">No daily reports found.</td>
+                    <td colspan="4" style="padding: 1rem; text-align: center; color: #6b7280;">No daily reports found.</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-    </div>
+    </section>
 </div>
 {% endblock %}

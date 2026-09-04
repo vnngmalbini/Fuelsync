@@ -1,11 +1,10 @@
-{% extends 'base.html' %}
+{% extends 'dashboard_layout.html' %}
 
 {% block title %}Inventory - FuelSync{% endblock %}
 
-{% block content %}
+{% block page_content %}
 <div class="container" style="padding: 2rem 0;">
     <h1>Inventory</h1>
-    <p>Total fuel types: <strong>{{ total_fuel_types }}</strong> | Low stock alerts: <strong>{{ low_stock_count }}</strong></p>
 
     <div style="overflow-x: auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;">
         <table style="width: 100%; border-collapse: collapse;">
@@ -20,12 +19,12 @@
             </thead>
             <tbody>
                 {% for row in inventory_rows %}
-                <tr style="border-top: 1px solid #e5e7eb;">
-                    <td style="padding: 0.75rem;">{{ row.fuel_name }}</td>
-                    <td style="padding: 0.75rem;">{{ row.quantity_liters|floatformat:2 }}</td>
-                    <td style="padding: 0.75rem;">{{ row.max_capacity|floatformat:0 }}</td>
-                    <td style="padding: 0.75rem;">{{ row.percentage|floatformat:1 }}%</td>
-                    <td style="padding: 0.75rem;">
+                <tr data-inventory-row="{{ row.fuel_name }}" style="border-top: 1px solid #e5e7eb;">
+                    <td data-field="fuel_name" style="padding: 0.75rem;">{{ row.fuel_name }}</td>
+                    <td data-field="quantity_liters" style="padding: 0.75rem;">{{ row.quantity_liters|floatformat:2 }}</td>
+                    <td data-field="max_capacity" style="padding: 0.75rem;">{{ row.max_capacity|floatformat:0 }}</td>
+                    <td data-field="percentage" style="padding: 0.75rem;">{{ row.percentage|floatformat:1 }}%</td>
+                    <td data-field="status" style="padding: 0.75rem;">
                         {% if row.is_low_stock %}
                             <span style="color: #b91c1c; font-weight: 600;">Low Stock</span>
                         {% else %}
@@ -42,4 +41,32 @@
         </table>
     </div>
 </div>
+<script>
+(function () {
+    function refreshInventory() {
+        fetch("{% url 'dashboard_inventory_live' %}", {
+            headers: {"X-Requested-With": "XMLHttpRequest"},
+            credentials: "same-origin",
+            cache: "no-store"
+        })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (data.status !== "success") return;
+                data.inventory.forEach(function (item) {
+                    var row = document.querySelector('[data-inventory-row="' + item.fuel_name + '"]');
+                    if (!row) return;
+                    row.querySelector('[data-field="quantity_liters"]').textContent = item.quantity_liters.toFixed(2);
+                    row.querySelector('[data-field="max_capacity"]').textContent = item.max_capacity.toFixed(0);
+                    row.querySelector('[data-field="percentage"]').textContent = item.percentage.toFixed(1) + "%";
+                    row.querySelector('[data-field="status"]').innerHTML = item.is_low_stock
+                        ? '<span style="color: #b91c1c; font-weight: 600;">Low Stock</span>'
+                        : '<span style="color: #15803d; font-weight: 600;">Healthy</span>';
+                });
+            })
+            .catch(function () {});
+    }
+
+    window.setInterval(refreshInventory, 5000);
+}());
+</script>
 {% endblock %}

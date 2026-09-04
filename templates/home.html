@@ -18,84 +18,79 @@
 
         /* Header / Navbar */
         header {
-            background: var(--panel);
-            border-bottom: 1px solid var(--panel-border);
-            box-shadow: var(--shadow-md);
+            background: rgba(255,255,255,0.92);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(13,71,161,0.08);
+            box-shadow: 0 1px 20px rgba(13,71,161,0.07);
             position: sticky;
             top: 0;
             z-index: 100;
+            /* needed so the drawer positions relative to header */
         }
 
         nav {
-            max-width: 1400px;
+            max-width: 1280px;
             margin: 0 auto;
             padding: 0 32px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            height: 76px;
+            height: 68px;
+            gap: 24px;
         }
 
         .logo {
             display: flex;
             align-items: center;
-            gap: 14px;
-            font-weight: 700;
-            font-size: 1.3rem;
-            color: var(--primary);
+            gap: 10px;
+            font-weight: 800;
+            font-size: 1.2rem;
+            color: #0D47A1;
             text-decoration: none;
-            letter-spacing: -0.5px;
+            letter-spacing: -0.4px;
+            flex-shrink: 0;
         }
 
         .logo-mark {
-            width: 44px;
-            height: 44px;
+            width: 38px;
+            height: 38px;
             border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: var(--gradient-primary);
+            background: linear-gradient(135deg, #0D47A1, #1976D2);
             color: white;
-            font-size: 1.4rem;
-            box-shadow: 0 4px 16px rgba(13, 71, 161, 0.25);
+            font-size: 1.1rem;
+            box-shadow: 0 4px 12px rgba(13,71,161,0.3);
+            flex-shrink: 0;
         }
 
-        .nav-links {
+        .nav-center {
             display: flex;
-            gap: 40px;
+            align-items: center;
+            gap: 4px;
             list-style: none;
             margin: 0;
             padding: 0;
+            flex: 1;
+            justify-content: center;
         }
 
-        .menu-toggle {
-            display: none;
-            border: 1px solid var(--panel-border);
-            background: #fff;
-            color: var(--primary);
-            border-radius: 8px;
-            padding: 8px 10px;
-            font-weight: 700;
-            cursor: pointer;
-        }
-
-        .nav-links a {
+        .nav-center li a {
             text-decoration: none;
-            color: var(--text-muted);
+            color: #475569;
             font-weight: 500;
-            font-size: 0.95rem;
-            transition: color 0.2s ease;
-            position: relative;
+            font-size: 0.9rem;
+            padding: 7px 14px;
+            border-radius: 8px;
+            transition: all 0.15s ease;
+            white-space: nowrap;
         }
 
-        .nav-links a:hover {
-            color: var(--primary);
-        }
-
-        .nav-cta {
-            display: flex;
-            gap: 16px;
-            align-items: center;
+        .nav-center li a:hover {
+            color: #0D47A1;
+            background: rgba(13,71,161,0.06);
         }
 
         /* Generic button helpers */
@@ -121,77 +116,105 @@
             border: 1.5px solid rgba(13,71,161,0.15);
         }
 
-        .nav-cta a {
-            padding: 11px 24px;
-            border-radius: 8px;
-            font-weight: 600;
-            text-decoration: none;
-            transition: all 0.2s ease;
-            font-size: 0.95rem;
+        .nav-cta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
         }
 
         .nav-cta .login {
-            color: var(--primary);
-            border: 1.5px solid var(--primary);
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            text-decoration: none;
+            color: #0D47A1;
+            border: 1.5px solid rgba(13,71,161,0.22);
+            transition: all 0.15s ease;
         }
 
         .nav-cta .login:hover {
-            background: var(--primary);
-            color: white;
+            background: rgba(13,71,161,0.05);
+            border-color: #0D47A1;
         }
 
         .nav-cta .signup {
-            background: var(--primary);
-            color: white;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            text-decoration: none;
+            background: #0D47A1;
+            color: #fff;
+            transition: all 0.15s ease;
+            box-shadow: 0 4px 14px rgba(13,71,161,0.25);
         }
 
         .nav-cta .signup:hover {
-            background: var(--primary-dark);
-            box-shadow: 0 8px 24px rgba(13, 71, 161, 0.3);
+            background: #0A3A7D;
+            box-shadow: 0 6px 20px rgba(13,71,161,0.35);
+            transform: translateY(-1px);
+        }
+
+        .menu-toggle {
+            display: none;
+            background: none;
+            border: 1px solid rgba(13,71,161,0.18);
+            border-radius: 8px;
+            width: 38px;
+            height: 38px;
+            cursor: pointer;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 0;
+            flex-shrink: 0;
+        }
+
+        .menu-toggle span {
+            display: block;
+            width: 18px;
+            height: 2px;
+            background: #0D47A1;
+            border-radius: 2px;
+            transition: all 0.2s ease;
+        }
+
+        /* mobile nav drawer */
+        .nav-drawer {
+            display: none;
         }
 
         /* Hero Section */
         .hero {
-            background: linear-gradient(180deg, #FFFFFF 0%, #F8FBFF 100%);
-            color: var(--text);
-            padding: 80px 32px;
-            text-align: left;
+            background: #fff;
+            padding: 72px 32px 80px;
             position: relative;
             overflow: hidden;
-            border-bottom: 1px solid var(--panel-border);
+            border-bottom: 1px solid #e8edf5;
         }
 
         .hero::before {
             content: '';
             position: absolute;
-            top: -50%;
-            right: -10%;
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, rgba(13, 71, 161, 0.08) 0%, rgba(255, 122, 0, 0.04) 32%, transparent 72%);
-            border-radius: 50%;
-            pointer-events: none;
-        }
-
-        .hero::after {
-            content: '';
-            position: absolute;
-            bottom: -30%;
-            left: -5%;
-            width: 400px;
-            height: 400px;
-            background: radial-gradient(circle, rgba(255, 122, 0, 0.08) 0%, rgba(13, 71, 161, 0.05) 42%, transparent 72%);
+            top: -120px;
+            right: -80px;
+            width: 520px;
+            height: 520px;
+            background: radial-gradient(circle, rgba(13,71,161,0.07) 0%, transparent 68%);
             border-radius: 50%;
             pointer-events: none;
         }
 
         .hero-content {
-            max-width: 1400px;
+            max-width: 1200px;
             margin: 0 auto;
             display: grid;
-            grid-template-columns: minmax(0, 1.03fr) minmax(0, 0.97fr);
-            gap: 42px;
-            align-items: stretch;
+            grid-template-columns: 1fr 1fr;
+            gap: 64px;
+            align-items: center;
             position: relative;
             z-index: 1;
         }
@@ -199,128 +222,148 @@
         .hero-text {
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            min-height: clamp(460px, 52vw, 620px);
-            height: 100%;
-            padding: 36px 34px;
-            border-radius: 24px;
-            background: linear-gradient(165deg, #FFFFFF 0%, #F3F8FF 100%);
-            border: 1px solid rgba(13, 71, 161, 0.14);
-            box-shadow: 0 24px 42px rgba(13, 71, 161, 0.12);
-            animation: cardReveal 0.7s ease-out both;
+            gap: 0;
         }
 
         .hero-tag {
-            display: inline-block;
-            background: rgba(13, 71, 161, 0.08);
-            color: var(--primary);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #EEF4FF;
+            color: #0D47A1;
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 0.8rem;
             font-weight: 600;
-            margin-bottom: 20px;
-            letter-spacing: 0.5px;
+            margin-bottom: 24px;
             width: fit-content;
-            border: 1px solid rgba(13, 71, 161, 0.16);
+            border: 1px solid rgba(13,71,161,0.15);
+            letter-spacing: 0.3px;
+        }
+
+        .hero-tag::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #0D47A1;
+            flex-shrink: 0;
         }
 
         .hero h1 {
-            font-size: clamp(2.4rem, 5vw, 3.8rem);
-            margin: 0 0 18px;
-            line-height: 1.15;
+            font-size: clamp(2.2rem, 4vw, 3.4rem);
+            margin: 0 0 20px;
+            line-height: 1.13;
             font-weight: 800;
-            letter-spacing: -1px;
-            color: #1E2638;
+            letter-spacing: -1.5px;
+            color: #0f172a;
+        }
+
+        .hero h1 span {
+            color: #0D47A1;
         }
 
         .hero p {
-            font-size: 1.15rem;
-            margin: 0 0 32px;
-            opacity: 1;
-            line-height: 1.7;
-            color: var(--text-muted);
-            max-width: 34ch;
+            font-size: 1.1rem;
+            margin: 0 0 36px;
+            line-height: 1.75;
+            color: #64748b;
+            max-width: 42ch;
         }
 
         .hero-actions {
             display: flex;
-            gap: 20px;
+            gap: 14px;
             flex-wrap: wrap;
-            margin-bottom: 28px;
+            margin-bottom: 48px;
         }
 
-        .welcome-strip {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 16px;
-            margin-top: 0;
+        .hero-stats {
+            display: flex;
+            gap: 32px;
+            padding-top: 24px;
+            border-top: 1px solid #e8edf5;
         }
 
-        .welcome-item {
-            background: #FFFFFF;
-            border: 1px solid rgba(13, 71, 161, 0.14);
-            border-radius: 16px;
-            padding: 16px 18px;
-            box-shadow: 0 12px 26px rgba(13, 71, 161, 0.10);
-        }
-
-        .welcome-item strong {
+        .hero-stat strong {
             display: block;
-            margin-bottom: 4px;
-            font-size: 1rem;
-            color: #1E2638;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #0D47A1;
+            letter-spacing: -0.5px;
         }
 
-        .welcome-item span {
-            color: var(--text-muted);
-            font-size: 0.94rem;
+        .hero-stat span {
+            font-size: 0.82rem;
+            color: #94a3b8;
+            font-weight: 500;
         }
 
         .hero-image-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: clamp(460px, 52vw, 620px);
-            height: 100%;
-            padding: 18px;
-            border-radius: 24px;
-            border: 1px solid rgba(13, 71, 161, 0.12);
-            background: linear-gradient(150deg, #FFFFFF 0%, #EDF4FF 100%);
-            box-shadow: 0 24px 40px rgba(13, 71, 161, 0.10);
+            position: relative;
+        }
+
+        .hero-image-frame {
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 32px 80px rgba(13,71,161,0.18), 0 8px 24px rgba(0,0,0,0.08);
+            border: 1px solid rgba(13,71,161,0.1);
+            aspect-ratio: 4/3;
         }
 
         .hero-image {
             width: 100%;
             height: 100%;
-            object-fit: contain;
+            object-fit: cover;
             object-position: center;
-            border-radius: 18px;
-            background: #F8FAFD;
-            box-shadow: 0 14px 30px rgba(15, 23, 42, 0.16);
-            animation: imageReveal 0.9s ease-out both;
+            display: block;
         }
 
-        @keyframes cardReveal {
-            from {
-                opacity: 0;
-                transform: translateY(12px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+        .hero-badge {
+            position: absolute;
+            bottom: -18px;
+            left: -18px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 14px 18px;
+            box-shadow: 0 8px 28px rgba(13,71,161,0.12);
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
-        @keyframes imageReveal {
-            from {
-                opacity: 0;
-                transform: translateY(16px) scale(0.985);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
+        .hero-badge-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #0D47A1, #1976D2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
         }
+
+        .hero-badge-text strong {
+            display: block;
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .hero-badge-text span {
+            font-size: 0.78rem;
+            color: #64748b;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .hero-text { animation: fadeUp 0.6s ease-out both; }
+        .hero-image-container { animation: fadeUp 0.7s 0.1s ease-out both; }
 
         .features {
             display: grid;
@@ -411,7 +454,8 @@
             line-height: 1.7;
         }
 
-        .welcome-card a {
+        .welcome-card a,
+        .welcome-card button {
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -422,6 +466,581 @@
             border-radius: 12px;
             font-weight: 800;
             box-shadow: 0 10px 22px rgba(13, 71, 161, 0.18);
+            border: none;
+            cursor: pointer;
+            font-size: inherit;
+            font-family: inherit;
+        }
+
+        .welcome-card a.secondary-action,
+        .welcome-card button.secondary-action {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            box-shadow: 0 10px 22px rgba(217, 119, 6, 0.18);
+        }
+
+        .hero-attendance-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 18px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            background: linear-gradient(135deg, #0f172a 0%, #2563eb 100%);
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25);
+        }
+
+        .hero-attendance-btn.secondary {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            box-shadow: 0 8px 20px rgba(217, 119, 6, 0.25);
+        }
+
+        .hero-attendance-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        /* Public attendance kiosk section */
+        .attendance-kiosk-section {
+            max-width: 1300px;
+            margin: 0 auto 80px;
+            padding: 0 32px;
+        }
+
+        .attendance-kiosk-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.15fr 1fr;
+            gap: 24px;
+            margin-top: 28px;
+        }
+
+        .attendance-panel {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 14px;
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+        }
+
+        .attendance-panel-header {
+            padding: 18px 22px;
+            border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .attendance-panel-header h3 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .attendance-panel-count {
+            font-size: 0.8rem;
+            color: #64748b;
+            background: rgba(15, 23, 42, 0.05);
+            padding: 3px 10px;
+            border-radius: 999px;
+        }
+
+        .attendance-panel-body {
+            padding: 20px 22px;
+        }
+
+        .attendance-video-wrap {
+            position: relative;
+            background: #0f172a;
+            border-radius: 12px;
+            overflow: hidden;
+            aspect-ratio: 4/3;
+        }
+
+        .attendance-video-wrap video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .attendance-video-placeholder {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            font-size: 0.85rem;
+            text-align: center;
+            padding: 20px;
+            background: #0f172a;
+        }
+
+        .attendance-enable-camera-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 12px;
+            border: none;
+            border-radius: 10px;
+            padding: 10px 18px;
+            font-weight: 700;
+            font-size: 0.88rem;
+            cursor: pointer;
+            background: linear-gradient(135deg, #1d4ed8, #2563eb);
+            color: #fff;
+            box-shadow: 0 6px 18px rgba(37, 99, 235, 0.22);
+        }
+
+        .attendance-enable-camera-btn:hover {
+            transform: translateY(-1px);
+        }
+
+        .attendance-enable-camera-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .attendance-capture-status {
+            margin-top: 12px;
+            font-size: 0.88rem;
+            min-height: 1.3em;
+            color: #64748b;
+        }
+
+        .attendance-verified-banner {
+            display: none;
+            align-items: center;
+            gap: 12px;
+            margin-top: 14px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            background: rgba(22, 163, 74, 0.1);
+            border: 1px solid rgba(22, 163, 74, 0.25);
+        }
+
+        .attendance-verified-banner.show {
+            display: flex;
+        }
+
+        .attendance-verified-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: #16a34a;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .attendance-verified-title {
+            margin: 0;
+            font-weight: 700;
+            font-size: 0.92rem;
+            color: #15803d;
+        }
+
+        .attendance-verified-detail {
+            margin: 2px 0 0;
+            font-size: 0.8rem;
+            color: #166534;
+        }
+
+        .attendance-no-photo-banner {
+            margin-top: 14px;
+            font-size: 0.8rem;
+            color: #b45309;
+            background: rgba(245, 158, 11, 0.1);
+            padding: 10px 12px;
+            border-radius: 8px;
+        }
+
+        .attendance-history-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .attendance-history-table thead th {
+            padding: 11px 14px;
+            text-align: left;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #64748b;
+            background: #f8fafc;
+            border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+            white-space: nowrap;
+        }
+
+        .attendance-history-table tbody td {
+            padding: 12px 14px;
+            font-size: 0.875rem;
+            color: #334155;
+            border-bottom: 1px solid rgba(15, 23, 42, 0.04);
+        }
+
+        .attendance-history-table tbody tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .attendance-history-wrap {
+            overflow-x: auto;
+            max-height: 420px;
+            overflow-y: auto;
+        }
+
+        .attendance-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .attendance-badge-in {
+            background: rgba(34, 197, 94, 0.12);
+            color: #15803d;
+        }
+
+        .attendance-badge-out {
+            background: rgba(15, 23, 42, 0.06);
+            color: #475569;
+        }
+
+        .attendance-empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        @media (max-width: 1100px) {
+            .attendance-kiosk-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .attendance-kiosk-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .attendance-kiosk-section {
+                padding: 0 20px;
+            }
+        }
+
+        /* Registered profile panel styles */
+        .profile-photo-ring {
+            position: relative;
+            padding: 4px;
+            background: linear-gradient(135deg, #0d47a1 0%, #ff7a00 100%);
+            border-radius: 50%;
+            display: inline-block;
+            margin: 10px 0 16px;
+            box-shadow: 0 8px 24px rgba(13, 71, 161, 0.15);
+            transition: transform 0.3s ease;
+        }
+        .profile-photo-ring:hover {
+            transform: scale(1.05);
+        }
+        .profile-photo {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #f1f5f9;
+            display: block;
+            border: 3px solid #fff;
+        }
+        .profile-photo-placeholder {
+            width: 110px;
+            height: 110px;
+            border-radius: 50%;
+            background: #f1f5f9;
+            border: 3px solid #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .profile-name {
+            margin: 0 0 6px;
+            font-size: 1.2rem;
+            font-weight: 800;
+            color: #0d47a1;
+        }
+        .profile-role {
+            margin: 0 0 20px;
+            font-size: 0.82rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #64748b;
+        }
+        .profile-contact-info {
+            width: 100%;
+            border-top: 1px solid rgba(15, 23, 42, 0.06);
+            padding-top: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            text-align: left;
+        }
+        .profile-contact-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(15, 23, 42, 0.02);
+            padding: 10px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(15, 23, 42, 0.03);
+            transition: all 0.2s ease;
+        }
+        .profile-contact-item:hover {
+            background: rgba(13, 71, 161, 0.03);
+            border-color: rgba(13, 71, 161, 0.1);
+        }
+        .profile-contact-item .icon {
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .profile-contact-item .value {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #334155;
+            word-break: break-all;
+        }
+        .profile-empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 10px;
+            color: #64748b;
+        }
+        .profile-empty-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            opacity: 0.4;
+            animation: float-avatar 3s ease-in-out infinite;
+        }
+        .profile-empty-text {
+            font-size: 0.88rem;
+            line-height: 1.5;
+            margin: 0;
+            text-align: center;
+        }
+        @keyframes float-avatar {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        /* Attendance camera modal */
+        .attendance-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(8, 12, 24, 0.72);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .attendance-modal-overlay.open {
+            display: flex;
+        }
+
+        .attendance-modal {
+            width: min(420px, 100%);
+            background: #0f172a;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+        }
+
+        .attendance-modal__head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 20px;
+            color: #fff;
+        }
+
+        .attendance-modal__head h3 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .attendance-modal__close {
+            background: rgba(255, 255, 255, 0.08);
+            border: none;
+            color: #fff;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+
+        .attendance-video-frame {
+            position: relative;
+            aspect-ratio: 4/3;
+            background: #000;
+            overflow: hidden;
+        }
+
+        .attendance-video-frame video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .face-guide {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        .face-guide-oval {
+            width: 62%;
+            height: 78%;
+            border: 3px solid rgba(255, 255, 255, 0.55);
+            border-radius: 50%;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .face-guide-oval.detected {
+            border-color: #facc15;
+            box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.15);
+        }
+
+        .face-guide-oval.verified {
+            border-color: #22c55e;
+            box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.18);
+        }
+
+        .face-guide-oval.mismatch {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.18);
+        }
+
+        .attendance-modal__status.error-text {
+            color: #f87171;
+        }
+
+        .attendance-retry-btn {
+            display: none;
+            margin-top: 14px;
+            border: none;
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            padding: 9px 20px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .attendance-retry-btn.show {
+            display: inline-block;
+        }
+
+        .attendance-modal__body {
+            padding: 22px 24px 26px;
+            text-align: center;
+            color: #fff;
+        }
+
+        .attendance-modal__status {
+            font-size: 0.98rem;
+            font-weight: 700;
+            margin: 0 0 4px;
+            min-height: 1.3em;
+        }
+
+        .attendance-modal__hint {
+            font-size: 0.82rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin: 0;
+            min-height: 1.2em;
+        }
+
+        .attendance-success {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0 4px;
+        }
+
+        .attendance-success.show {
+            display: flex;
+        }
+
+        .attendance-success .check-circle {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: #16a34a;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            animation: attendanceCheckPop 0.35s ease;
+        }
+
+        .attendance-success h4 {
+            margin: 6px 0 0;
+            font-size: 1.1rem;
+        }
+
+        .attendance-success p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .attendance-success .done-btn {
+            margin-top: 14px;
+            border: none;
+            background: #16a34a;
+            color: #fff;
+            padding: 10px 22px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        @keyframes attendanceCheckPop {
+            from { transform: scale(0.6); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .attendance-video-frame.hidden,
+        .attendance-modal__status.hidden,
+        .attendance-modal__hint.hidden {
+            display: none;
         }
 
         .services {
@@ -723,76 +1342,53 @@
         @media (max-width: 768px) {
             nav {
                 padding: 0 20px;
-                height: 68px;
+                height: 64px;
+            }
+
+            .nav-center {
+                display: none;
             }
 
             .hero-content {
                 grid-template-columns: 1fr;
-                gap: 24px;
+                gap: 40px;
             }
 
             .logo {
                 font-size: 1.1rem;
-                gap: 10px;
             }
 
-            .logo-mark {
-                width: 40px;
-                height: 40px;
-                font-size: 1.2rem;
-            }
-
-            .nav-links {
-                gap: 24px;
-            }
-
-            .nav-cta {
-                gap: 10px;
-            }
-
-            .nav-cta a {
-                padding: 9px 18px;
-                font-size: 0.85rem;
-            }
+            .nav-cta .login { display: none; }
 
             .hero {
-                padding: 100px 20px 80px;
+                padding: 56px 20px 64px;
             }
 
             .hero h1 {
                 font-size: 2.2rem;
+                letter-spacing: -1px;
             }
 
             .hero p {
                 font-size: 1rem;
+                max-width: none;
             }
 
             .hero-actions {
                 flex-direction: column;
                 align-items: stretch;
-                gap: 16px;
+                gap: 12px;
             }
 
-            .hero-text {
-                padding: 24px 20px;
-                border-radius: 18px;
-                min-height: auto;
+            .hero-stats {
+                gap: 20px;
             }
 
-            .hero-image-container {
-                min-height: auto;
-                height: auto;
-                border-radius: 18px;
-                padding: 14px;
+            .hero-badge {
+                bottom: -14px;
+                left: -10px;
             }
 
-            .hero-image {
-                height: auto;
-                aspect-ratio: 16 / 11;
-                object-fit: contain;
-            }
-
-            .welcome-strip,
             .welcome-grid {
                 grid-template-columns: 1fr;
             }
@@ -843,40 +1439,67 @@
 
         @media (max-width: 640px) {
             .menu-toggle {
-                display: inline-block;
-            }
-
-            .nav-links {
-                position: absolute;
-                top: 68px;
-                left: 16px;
-                right: 16px;
-                z-index: 120;
-                background: #fff;
-                border: 1px solid var(--panel-border);
-                border-radius: 12px;
-                box-shadow: var(--shadow-md);
-                padding: 16px;
-                display: none;
-                flex-direction: column;
-                gap: 14px;
-            }
-
-            .nav-links.open {
                 display: flex;
             }
 
-            nav {
-                gap: 12px;
+            .nav-cta { display: none; }
+
+            .nav-drawer {
+                display: none;
+                position: absolute;
+                top: 64px;
+                left: 0;
+                right: 0;
+                z-index: 120;
+                background: #fff;
+                border-bottom: 1px solid rgba(13,71,161,0.1);
+                box-shadow: 0 8px 24px rgba(13,71,161,0.1);
+                padding: 16px 20px;
+                flex-direction: column;
+                gap: 4px;
             }
 
-            .hero h1 {
-                font-size: 1.8rem;
+            .nav-drawer.open { display: flex; }
+
+            .nav-drawer a {
+                text-decoration: none;
+                color: #475569;
+                font-weight: 500;
+                font-size: 0.95rem;
+                padding: 10px 12px;
+                border-radius: 8px;
+                transition: all 0.15s ease;
             }
 
-            .logo {
-                font-size: 1rem;
+            .nav-drawer a:hover { color: #0D47A1; background: rgba(13,71,161,0.06); }
+
+            .nav-drawer .drawer-cta {
+                margin-top: 10px;
+                padding-top: 12px;
+                border-top: 1px solid rgba(13,71,161,0.1);
+                display: flex;
+                gap: 10px;
             }
+
+            .nav-drawer .drawer-cta a {
+                flex: 1;
+                text-align: center;
+                font-weight: 600;
+                font-size: 0.9rem;
+            }
+
+            .nav-drawer .drawer-cta .login {
+                color: #0D47A1;
+                border: 1.5px solid rgba(13,71,161,0.22);
+            }
+
+            .nav-drawer .drawer-cta .signup {
+                background: #0D47A1;
+                color: #fff;
+            }
+
+            .hero h1 { font-size: 1.8rem; }
+            .logo { font-size: 1rem; }
         }
     </style>
 </head>
@@ -888,30 +1511,49 @@
                 <div class="logo-mark">⛽</div>
                 FuelSync
             </a>
-            <button
-                class="menu-toggle"
-                id="menuToggle"
-                aria-expanded="false"
-                aria-controls="mainNav"
-                aria-label="Toggle navigation menu"
-                type="button"
-            >
-                Menu
-            </button>
-            <ul class="nav-links" id="mainNav">
+
+            <ul class="nav-center">
                 <li><a href="/how-it-works/">How it works</a></li>
                 <li><a href="/about/">About</a></li>
                 <li><a href="/contact/">Contact</a></li>
                 {% if user.is_authenticated %}
                 <li><a href="/buy/">Buy Fuel</a></li>
-                <li><a href="/dashboard/profile/">Profile</a></li>
                 <li><a href="/dashboard/">Dashboard</a></li>
-                {% else %}
-                <li><a href="/accounts/login/">Login</a></li>
-                <li><a href="/accounts/signup/">Sign up</a></li>
                 {% endif %}
             </ul>
+
+            <div class="nav-cta">
+                {% if user.is_authenticated %}
+                <a href="/dashboard/profile/" class="login">Profile</a>
+                <a href="/dashboard/" class="signup">Dashboard</a>
+                {% else %}
+                <a href="/accounts/login/" class="login">Sign in</a>
+                <a href="/accounts/signup/" class="signup">Get started</a>
+                {% endif %}
+            </div>
+
+            <button class="menu-toggle" id="menuToggle" aria-expanded="false" aria-label="Menu" type="button">
+                <span></span><span></span><span></span>
+            </button>
         </nav>
+
+        <!-- Mobile drawer -->
+        <div class="nav-drawer" id="navDrawer">
+            <a href="/how-it-works/">How it works</a>
+            <a href="/about/">About</a>
+            <a href="/contact/">Contact</a>
+            {% if user.is_authenticated %}
+            <a href="/buy/">Buy Fuel</a>
+            <a href="/dashboard/">Dashboard</a>
+            <a href="/dashboard/profile/">Profile</a>
+            {% endif %}
+            {% if not user.is_authenticated %}
+            <div class="drawer-cta">
+                <a href="/accounts/login/" class="login">Sign in</a>
+                <a href="/accounts/signup/" class="signup">Get started</a>
+            </div>
+            {% endif %}
+        </div>
     </header>
 
     <!-- Hero Section -->
@@ -920,39 +1562,195 @@
             <div class="hero-text">
                 <div class="hero-tag">Fuel Management Platform</div>
                 {% if user.is_authenticated %}
-                <h1>Welcome back, {{ welcome_first_name|capfirst }}.</h1>
-                <p>FuelSync provides station teams with a reliable way to manage sales, process payments, and retrieve receipts from one dashboard.</p>
-                {% else %}
-                <h1>Manage Your Fuel Station Efficiently from One Platform</h1>
-                <p>FuelSync helps fuel stations and fleet operators track sales, monitor inventory, process payments, and generate digital receipts from one centralized platform.</p>
-                {% endif %}
+                <h1>Welcome back,<br><span>{{ welcome_first_name|capfirst }}.</span></h1>
+                <p>Your station dashboard is ready. Track sales, process payments, and manage receipts — all from one place.</p>
                 <div class="hero-actions">
-                    {% if user.is_authenticated %}
                     <a href="/dashboard/" class="btn btn-primary">Open Dashboard</a>
-                    <a href="/buy/" class="btn btn-secondary">Start Fuel Order</a>
-                    {% else %}
-                    <a href="/accounts/signup/" class="btn btn-primary">Get Started</a>
-                    <a href="/accounts/login/" class="btn btn-secondary">Sign In</a>
-                    {% endif %}
+                    <a href="/buy/" class="btn btn-secondary">New Fuel Order</a>
+                    {% include "partials/home_attendance_action.html" %}
                 </div>
-                <div class="welcome-strip">
-                    <div class="welcome-item">
-                        <strong>Initiate a sale</strong>
-                        <span>Enter the transaction amount and customer details to begin the process.</span>
+                {% else %}
+                <h1>Fuel Station Management,<br><span>Simplified.</span></h1>
+                <p>FuelSync gives station teams a single platform to manage sales, process mobile payments, and deliver digital receipts instantly.</p>
+                <div class="hero-actions">
+                    <a href="/accounts/signup/" class="btn btn-primary">Get started</a>
+                    <a href="/how-it-works/" class="btn btn-secondary">How it works</a>
+                    {% include "partials/home_attendance_action.html" %}
+                </div>
+                {% endif %}
+                <div class="hero-stats">
+                    <div class="hero-stat">
+                        <strong>{{ stat_transactions }}</strong>
+                        <span>Transaction{{ stat_transactions|pluralize }}</span>
                     </div>
-                    <div class="welcome-item">
-                        <strong>Secure payment processing</strong>
-                        <span>Collect payment securely through our Paystack checkout integration.</span>
+                    <div class="hero-stat">
+                        <strong>GHS {{ stat_revenue|floatformat:2 }}</strong>
+                        <span>Total Revenue</span>
                     </div>
-                    <div class="welcome-item">
-                        <strong>Digital receipt management</strong>
-                        <span>Receipts are stored with each customer record for efficient retrieval.</span>
+                    <div class="hero-stat">
+                        <strong>{{ stat_customers }}</strong>
+                        <span>Customer{{ stat_customers|pluralize }}</span>
                     </div>
                 </div>
             </div>
 
             <div class="hero-image-container">
-                <img src="{% static 'images/gas-station.png' %}" alt="Gas Station" class="hero-image">
+                <div class="hero-image-frame">
+                    <img src="{% static 'images/shell.jpg' %}" alt="Fuel station" class="hero-image">
+                </div>
+                <div class="hero-badge">
+                    <div class="hero-badge-icon">⛽</div>
+                    <div class="hero-badge-text">
+                        <strong>Payment Processed</strong>
+                        <span>Mobile money · Secure</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Public Attendance Kiosk -->
+    <section class="attendance-kiosk-section" id="attendance-section">
+        <div class="section-header">
+            <span class="section-tag">Staff check-in</span>
+            <h2>Mark attendance</h2>
+            <p>Face the camera to clock in or out. No login required — the system recognizes enrolled staff automatically.</p>
+        </div>
+
+        <form id="attendanceCsrfForm" style="display:none;">{% csrf_token %}</form>
+
+        <div class="attendance-kiosk-grid">
+            <div class="attendance-panel">
+                <div class="attendance-panel-header">
+                    <h3>📷 Live camera</h3>
+                </div>
+                <div class="attendance-panel-body">
+                    <div class="attendance-video-wrap">
+                        <video id="attendanceKioskVideo" autoplay playsinline muted></video>
+                        <div id="attendanceVideoPlaceholder" class="attendance-video-placeholder">
+                            Click the button below to enable your camera for face recognition.
+                        </div>
+                    </div>
+                    <canvas id="attendanceKioskCanvas" style="display:none;"></canvas>
+                    <button type="button" id="enableCameraBtn" class="attendance-enable-camera-btn">📷 Enable Camera</button>
+                    <div id="attendanceCaptureStatus" class="attendance-capture-status">Camera access is required to mark attendance.</div>
+                    <div id="attendanceVerifiedBanner" class="attendance-verified-banner">
+                        <div class="attendance-verified-icon">✓</div>
+                        <div>
+                            <p class="attendance-verified-title">Identity verified</p>
+                            <p class="attendance-verified-detail" id="attendanceVerifiedDetail"></p>
+                        </div>
+                    </div>
+                    {% if attendance_widget.staff_without_photo_count %}
+                    <div class="attendance-no-photo-banner">
+                        ⚠ {{ attendance_widget.staff_without_photo_count }} active staff member{{ attendance_widget.staff_without_photo_count|pluralize }} without a photo on file — recognition requires enrollment in the dashboard.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="attendance-panel">
+                <div class="attendance-panel-header">
+                    <h3><i class="bi bi-clock-history"></i> Attendance history</h3>
+                    <span class="attendance-panel-count">{{ attendance_rows|length }} recent</span>
+                </div>
+                <div class="attendance-panel-body" style="padding:0;">
+                    <div class="attendance-history-wrap">
+                        <table class="attendance-history-table">
+                            <thead>
+                                <tr>
+                                    <th>Staff</th>
+                                    <th>Event</th>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceHistoryBody">
+                                {% for row in attendance_rows %}
+                                <tr>
+                                    <td>{{ row.staff.user.get_full_name|default:row.staff.user.username }}</td>
+                                    <td>
+                                        <span class="attendance-badge {% if row.event_type == 'clock_in' %}attendance-badge-in{% else %}attendance-badge-out{% endif %}">
+                                            {% if row.event_type == 'clock_in' %}Check In{% else %}Check Out{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>{{ row.created_at|date:"M d, Y" }}</td>
+                                    <td>{{ row.created_at|date:"g:i A" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="attendance-empty-state">No attendance records yet.</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Registered Profile Detail Panel -->
+            <div class="attendance-panel" id="attendanceProfilePanel">
+                <div class="attendance-panel-header">
+                    <h3>👤 Registered Profile</h3>
+                </div>
+                <div class="attendance-panel-body" style="padding: 24px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 320px;">
+                    <div id="profileDetailsContainer" {% if not attendance_rows %}style="display: none;"{% endif %}>
+                        {% if attendance_rows %}
+                        {% with latest=attendance_rows|first %}
+                        <div class="profile-photo-ring">
+                            {% if latest.staff.profile_picture %}
+                            <img id="profilePhotoImg" class="profile-photo" src="{{ latest.staff.profile_picture.url }}" alt="Staff photo">
+                            <div id="profilePhotoFallback" class="profile-photo-placeholder" style="display: none;">
+                                <i class="bi bi-person-fill" style="font-size: 3.5rem; color: #94a3b8;"></i>
+                            </div>
+                            {% else %}
+                            <img id="profilePhotoImg" class="profile-photo" src="" alt="Staff photo" style="display: none;">
+                            <div id="profilePhotoFallback" class="profile-photo-placeholder">
+                                <i class="bi bi-person-fill" style="font-size: 3.5rem; color: #94a3b8;"></i>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <h4 id="profileName" class="profile-name">{{ latest.staff.user.get_full_name|default:latest.staff.user.username }}</h4>
+                        <p id="profileRole" class="profile-role">{{ latest.staff.role.get_name_display }}</p>
+                        
+                        <div class="profile-contact-info">
+                            <div class="profile-contact-item">
+                                <span class="icon">📞</span>
+                                <span class="value" id="profilePhone">{{ latest.staff.phone|default:"No phone on file" }}</span>
+                            </div>
+                            <div class="profile-contact-item">
+                                <span class="icon">✉️</span>
+                                <span class="value" id="profileEmail">{{ latest.staff.user.email|default:"No email on file" }}</span>
+                            </div>
+                        </div>
+                        {% endwith %}
+                        {% else %}
+                        <div class="profile-photo-ring">
+                            <img id="profilePhotoImg" class="profile-photo" src="" alt="Staff photo" style="display: none;">
+                            <div id="profilePhotoFallback" class="profile-photo-placeholder">
+                                <i class="bi bi-person-fill" style="font-size: 3.5rem; color: #94a3b8;"></i>
+                            </div>
+                        </div>
+                        <h4 id="profileName" class="profile-name"></h4>
+                        <p id="profileRole" class="profile-role"></p>
+                        <div class="profile-contact-info">
+                            <div class="profile-contact-item">
+                                <span class="icon">📞</span>
+                                <span class="value" id="profilePhone"></span>
+                            </div>
+                            <div class="profile-contact-item">
+                                <span class="icon">✉️</span>
+                                <span class="value" id="profileEmail"></span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div id="profileEmptyState" {% if attendance_rows %}style="display: none;"{% endif %} class="profile-empty-state">
+                        <div class="profile-empty-icon">👤</div>
+                        <p class="profile-empty-text">No recognition history yet. Present a registered face to the camera to view profile info.</p>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -967,6 +1765,12 @@
             </div>
 
             <div class="welcome-grid">
+                <div class="welcome-card">
+                    <span class="icon">📷</span>
+                    <h3>Mark attendance</h3>
+                    <p>Use facial recognition to clock in or out. Position your face in front of the camera to verify your identity.</p>
+                    <button type="button" id="scrollToAttendanceBtnCard">Mark Attendance</button>
+                </div>
                 <div class="welcome-card">
                     <span class="icon">🛢️</span>
                     <h3>Initiate a sale</h3>
@@ -1051,17 +1855,305 @@
             <p>&copy; 2026 FuelSync. All rights reserved. Built for every journey.</p>
         </div>
     </footer>
+
     <script>
         (function () {
             const toggle = document.getElementById("menuToggle");
-            const nav = document.getElementById("mainNav");
-            if (!toggle || !nav) return;
+            const drawer = document.getElementById("navDrawer");
+            if (!toggle || !drawer) return;
 
             toggle.addEventListener("click", function () {
-                const expanded = toggle.getAttribute("aria-expanded") === "true";
-                toggle.setAttribute("aria-expanded", String(!expanded));
-                nav.classList.toggle("open");
+                const open = drawer.classList.toggle("open");
+                toggle.setAttribute("aria-expanded", String(open));
             });
+
+            document.addEventListener("click", function (e) {
+                if (!toggle.contains(e.target) && !drawer.contains(e.target)) {
+                    drawer.classList.remove("open");
+                    toggle.setAttribute("aria-expanded", "false");
+                }
+            });
+        })();
+
+        (function () {
+            const section = document.getElementById('attendance-section');
+            const scrollButtons = [
+                document.getElementById('scrollToAttendanceBtn'),
+                document.getElementById('scrollToAttendanceBtnCard'),
+            ].filter(Boolean);
+            const enableCameraBtn = document.getElementById('enableCameraBtn');
+
+            scrollButtons.forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    if (section) {
+                        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                    startCamera();
+                });
+            });
+
+            const video = document.getElementById('attendanceKioskVideo');
+            const placeholder = document.getElementById('attendanceVideoPlaceholder');
+            const canvas = document.getElementById('attendanceKioskCanvas');
+            const captureStatus = document.getElementById('attendanceCaptureStatus');
+            const verifiedBanner = document.getElementById('attendanceVerifiedBanner');
+            const verifiedDetail = document.getElementById('attendanceVerifiedDetail');
+            const csrfInput = document.querySelector('#attendanceCsrfForm [name=csrfmiddlewaretoken]');
+            const csrftoken = csrfInput ? csrfInput.value : '';
+
+            if (!video || !canvas || !captureStatus) return;
+
+            let stream = null;
+            let pollTimer = null;
+            let busy = false;
+            let stopped = false;
+            let verifiedHideTimer = null;
+            let cameraStarting = false;
+            let cameraActive = false;
+
+            function stopCamera() {
+                if (pollTimer) {
+                    clearTimeout(pollTimer);
+                    pollTimer = null;
+                }
+                if (stream) {
+                    stream.getTracks().forEach(function (track) { track.stop(); });
+                    stream = null;
+                }
+                video.srcObject = null;
+                cameraActive = false;
+                cameraStarting = false;
+                if (placeholder) {
+                    placeholder.style.display = 'flex';
+                    placeholder.textContent = 'Camera stopped. Click Enable Camera to try again.';
+                }
+                if (enableCameraBtn) {
+                    enableCameraBtn.disabled = false;
+                    enableCameraBtn.textContent = '📷 Enable Camera';
+                }
+            }
+
+            function requestCameraStream() {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    return Promise.reject(new Error('Camera not supported in this browser.'));
+                }
+
+                const attempts = [
+                    { video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } }, audio: false },
+                    { video: true, audio: false },
+                ];
+
+                function tryConstraints(index) {
+                    if (index >= attempts.length) {
+                        return navigator.mediaDevices.enumerateDevices().then(function (devices) {
+                            const videoDevices = devices.filter(function (d) { return d.kind === 'videoinput'; });
+                            if (!videoDevices.length) {
+                                throw new Error('No camera found on this device.');
+                            }
+                            function tryDevice(deviceIndex) {
+                                if (deviceIndex >= videoDevices.length) {
+                                    throw new Error('Could not start video source. Close other apps using the camera and try again.');
+                                }
+                                return navigator.mediaDevices.getUserMedia({
+                                    video: { deviceId: { exact: videoDevices[deviceIndex].deviceId } },
+                                    audio: false,
+                                }).catch(function () {
+                                    return tryDevice(deviceIndex + 1);
+                                });
+                            }
+                            return tryDevice(0);
+                        });
+                    }
+                    return navigator.mediaDevices.getUserMedia(attempts[index]).catch(function () {
+                        return tryConstraints(index + 1);
+                    });
+                }
+
+                return tryConstraints(0);
+            }
+
+            function startCamera() {
+                if (cameraActive || cameraStarting) return;
+                cameraStarting = true;
+
+                if (enableCameraBtn) {
+                    enableCameraBtn.disabled = true;
+                    enableCameraBtn.textContent = 'Starting camera…';
+                }
+                if (placeholder) {
+                    placeholder.style.display = 'flex';
+                    placeholder.textContent = 'Requesting camera access…';
+                }
+                captureStatus.textContent = 'Allow camera access when your browser prompts you.';
+
+                requestCameraStream().then(function (s) {
+                    if (stream) {
+                        stream.getTracks().forEach(function (track) { track.stop(); });
+                    }
+                    stream = s;
+                    video.srcObject = s;
+                    return video.play();
+                }).then(function () {
+                    cameraActive = true;
+                    cameraStarting = false;
+                    if (placeholder) placeholder.style.display = 'none';
+                    if (enableCameraBtn) {
+                        enableCameraBtn.disabled = false;
+                        enableCameraBtn.textContent = '📷 Restart Camera';
+                    }
+                    captureStatus.textContent = 'Position your face in front of the camera.';
+                    scheduleCapture(1200);
+                }).catch(function (err) {
+                    cameraStarting = false;
+                    const message = err && err.message ? err.message : 'Camera unavailable.';
+                    if (placeholder) {
+                        placeholder.style.display = 'flex';
+                        placeholder.textContent = 'Camera unavailable: ' + message;
+                    }
+                    captureStatus.textContent = 'Click Enable Camera to retry after allowing access in your browser settings.';
+                    if (enableCameraBtn) {
+                        enableCameraBtn.disabled = false;
+                        enableCameraBtn.textContent = '📷 Enable Camera';
+                    }
+                });
+            }
+
+            if (enableCameraBtn) {
+                enableCameraBtn.addEventListener('click', function () {
+                    if (cameraActive) {
+                        stopCamera();
+                        startCamera();
+                        return;
+                    }
+                    startCamera();
+                });
+            }
+
+            function scheduleCapture(delay) {
+                if (stopped || !cameraActive) return;
+                pollTimer = setTimeout(captureAndRecognize, delay);
+            }
+
+            function captureAndRecognize() {
+                if (stopped || busy || !video.videoWidth) {
+                    scheduleCapture(500);
+                    return;
+                }
+
+                busy = true;
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                captureStatus.textContent = 'Recognizing…';
+
+                fetch('{% url "attendance_public_capture" %}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ image: dataUrl }),
+                }).then(function (r) { return r.json(); }).then(function (result) {
+                    busy = false;
+                    if (stopped) return;
+
+                    if (result.status === 'success') {
+                        const label = result.event_type === 'clock_in' ? 'Checked in' : 'Checked out';
+                        captureStatus.textContent = '';
+                        verifiedDetail.textContent = result.staff_name + ' — ' + label + ' at ' + result.time;
+                        verifiedBanner.classList.add('show');
+                        if (verifiedHideTimer) clearTimeout(verifiedHideTimer);
+                        verifiedHideTimer = setTimeout(function () {
+                            verifiedBanner.classList.remove('show');
+                            captureStatus.textContent = 'Position your face in front of the camera.';
+                        }, 6000);
+
+                        const tbody = document.getElementById('attendanceHistoryBody');
+                        if (tbody) {
+                            const emptyRow = tbody.querySelector('.attendance-empty-state');
+                            if (emptyRow) emptyRow.closest('tr').remove();
+                            const badgeClass = result.event_type === 'clock_in' ? 'attendance-badge-in' : 'attendance-badge-out';
+                            const badgeLabel = result.event_type === 'clock_in' ? 'Check In' : 'Check Out';
+                            const row = document.createElement('tr');
+                            row.innerHTML = '<td>' + result.staff_name + '</td><td><span class="attendance-badge ' + badgeClass + '">' + badgeLabel + '</span></td><td>' + result.date + '</td><td>' + result.time + '</td>';
+                            tbody.insertBefore(row, tbody.firstChild);
+                        }
+
+                        // Update Registered Profile Panel on the right side of attendance history
+                        const profileDetailsContainer = document.getElementById('profileDetailsContainer');
+                        const profileEmptyState = document.getElementById('profileEmptyState');
+                        
+                        if (profileDetailsContainer && profileEmptyState) {
+                            profileEmptyState.style.display = 'none';
+                            profileDetailsContainer.style.display = 'block';
+                            
+                            // Micro-animation: fade out then fade in
+                            profileDetailsContainer.style.transition = 'opacity 0.2s ease';
+                            profileDetailsContainer.style.opacity = '0.3';
+                            
+                            setTimeout(function() {
+                                // Update Name & Role
+                                const nameEl = document.getElementById('profileName');
+                                if (nameEl) nameEl.textContent = result.staff_name;
+                                
+                                const roleEl = document.getElementById('profileRole');
+                                if (roleEl) roleEl.textContent = result.staff_role || 'Staff';
+                                
+                                // Update Phone
+                                const phoneEl = document.getElementById('profilePhone');
+                                if (phoneEl) phoneEl.textContent = result.staff_phone || 'No phone on file';
+                                
+                                // Update Email
+                                const emailEl = document.getElementById('profileEmail');
+                                if (emailEl) emailEl.textContent = result.staff_email || 'No email on file';
+                                
+                                // Update Photo / Avatar Fallback
+                                const imgEl = document.getElementById('profilePhotoImg');
+                                const fallbackEl = document.getElementById('profilePhotoFallback');
+                                
+                                if (imgEl && fallbackEl) {
+                                    if (result.staff_photo_url) {
+                                        imgEl.src = result.staff_photo_url;
+                                        imgEl.style.display = 'block';
+                                        fallbackEl.style.display = 'none';
+                                    } else {
+                                        imgEl.src = '';
+                                        imgEl.style.display = 'none';
+                                        fallbackEl.style.display = 'flex';
+                                    }
+                                }
+                                
+                                profileDetailsContainer.style.opacity = '1';
+                            }, 200);
+                        }
+
+                        stopped = true;
+                        setTimeout(function () {
+                            stopped = false;
+                            scheduleCapture(2000);
+                        }, 3000);
+                        return;
+                    }
+
+                    if (result.status === 'no_match') {
+                        const reasons = {
+                            no_face_detected: 'Looking for a face… position yourself in front of the camera.',
+                            no_enrolled_staff: 'No staff enrolled with a photo yet.',
+                            low_confidence: 'Face not recognized — try again with better lighting.',
+                        };
+                        captureStatus.textContent = reasons[result.reason] || 'Not recognized.';
+                        scheduleCapture(result.reason === 'no_face_detected' ? 1200 : 2000);
+                        return;
+                    }
+
+                    captureStatus.textContent = result.message || 'Something went wrong.';
+                    scheduleCapture(2000);
+                }).catch(function () {
+                    busy = false;
+                    if (stopped) return;
+                    captureStatus.textContent = 'Connection issue — retrying…';
+                    scheduleCapture(1500);
+                });
+            }
         })();
     </script>
 </body>

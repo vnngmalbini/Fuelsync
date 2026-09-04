@@ -1,11 +1,10 @@
-{% extends 'base.html' %}
+{% extends 'dashboard_layout.html' %}
 
 {% block title %}Pumps - FuelSync{% endblock %}
 
-{% block content %}
+{% block page_content %}
 <div class="container" style="padding: 2rem 0;">
     <h1>Pumps</h1>
-    <p>Operational: <strong>{{ operational_count }}</strong> | Maintenance: <strong>{{ maintenance_count }}</strong> | Offline: <strong>{{ offline_count }}</strong></p>
 
     <div style="overflow-x: auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;">
         <table style="width: 100%; border-collapse: collapse;">
@@ -20,12 +19,12 @@
             </thead>
             <tbody>
                 {% for pump in pumps %}
-                <tr style="border-top: 1px solid #e5e7eb;">
-                    <td style="padding: 0.75rem;">{{ pump.pump_number }}</td>
-                    <td style="padding: 0.75rem;">{{ pump.fuel_type.get_name_display }}</td>
-                    <td style="padding: 0.75rem; text-transform: capitalize;">{{ pump.status }}</td>
-                    <td style="padding: 0.75rem;">{{ pump.total_liters_dispensed|floatformat:2 }}</td>
-                    <td style="padding: 0.75rem;">GH₵{{ pump.total_revenue|floatformat:2 }}</td>
+                <tr data-pump-row="{{ pump.pump_number }}" style="border-top: 1px solid #e5e7eb;">
+                    <td data-field="pump_number" style="padding: 0.75rem;">{{ pump.pump_number }}</td>
+                    <td data-field="fuel_name" style="padding: 0.75rem;">{{ pump.fuel_type.get_name_display }}</td>
+                    <td data-field="status" style="padding: 0.75rem; text-transform: capitalize;">{{ pump.status }}</td>
+                    <td data-field="total_liters_dispensed" style="padding: 0.75rem;">{{ pump.total_liters_dispensed|floatformat:2 }}</td>
+                    <td data-field="total_revenue" style="padding: 0.75rem;">GH₵{{ pump.total_revenue|floatformat:2 }}</td>
                 </tr>
                 {% empty %}
                 <tr>
@@ -36,4 +35,30 @@
         </table>
     </div>
 </div>
+<script>
+(function () {
+    function refreshPumps() {
+        fetch("{% url 'dashboard_pumps_live' %}", {
+            headers: {"X-Requested-With": "XMLHttpRequest"},
+            credentials: "same-origin",
+            cache: "no-store"
+        })
+            .then(function (response) { return response.json(); })
+            .then(function (data) {
+                if (data.status !== "success") return;
+                data.pumps.forEach(function (pump) {
+                    var row = document.querySelector('[data-pump-row="' + pump.pump_number + '"]');
+                    if (!row) return;
+                    row.querySelector('[data-field="fuel_name"]').textContent = pump.fuel_name;
+                    row.querySelector('[data-field="status"]').textContent = pump.status;
+                    row.querySelector('[data-field="total_liters_dispensed"]').textContent = pump.total_liters_dispensed.toFixed(2);
+                    row.querySelector('[data-field="total_revenue"]').textContent = "GH₵" + pump.total_revenue.toFixed(2);
+                });
+            })
+            .catch(function () {});
+    }
+
+    window.setInterval(refreshPumps, 5000);
+}());
+</script>
 {% endblock %}

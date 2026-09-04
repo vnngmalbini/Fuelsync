@@ -4,7 +4,7 @@
     {% load static %}
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign Up FuelSync</title>
+    <title>Sign Up for FuelSync</title>
     <link rel="stylesheet" href="{% static 'css/ui-base.css' %}">
     <link rel="stylesheet" href="{% static 'css/fuelsync-core.css' %}">
     <link rel="stylesheet" href="{% static 'css/professional-polish.css' %}">
@@ -69,6 +69,10 @@
             min-height: 620px;
             position: relative;
             overflow: hidden;
+            color: white;
+            background:
+                linear-gradient(180deg, rgba(6, 13, 31, 0.70) 0%, rgba(6, 13, 31, 0.45) 45%, rgba(6, 13, 31, 0.78) 100%),
+                url("{% static 'images/shell.jpg' %}") center / cover no-repeat;
         }
 
         .hero::before {
@@ -81,6 +85,16 @@
             border-radius: 50%;
             background: radial-gradient(circle, rgba(255,122,0,0.10) 0%, rgba(255,184,77,0.05) 35%, transparent 70%);
             pointer-events: none;
+            z-index: 0;
+        }
+
+        .hero::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.06) 0%, rgba(0, 0, 0, 0.20) 100%);
+            pointer-events: none;
+            z-index: 0;
         }
 
         .brand {
@@ -90,9 +104,11 @@
             font-weight: 700;
             letter-spacing: 0.04em;
             text-transform: uppercase;
-            color: var(--text-muted);
+            color: rgba(255, 255, 255, 0.88);
             font-size: 0.88rem;
             width: fit-content;
+            position: relative;
+            z-index: 1;
         }
 
         .brand-mark {
@@ -111,15 +127,19 @@
             margin: 18px 0 12px;
             font-size: clamp(2.4rem, 4vw, 4.2rem);
             line-height: 0.98;
-            color: var(--text);
+            color: white;
+            position: relative;
+            z-index: 1;
         }
 
         .hero p {
             margin: 0;
             max-width: 42ch;
-            color: var(--text-muted);
+            color: rgba(255, 255, 255, 0.78);
             font-size: 1.02rem;
             line-height: 1.7;
+            position: relative;
+            z-index: 1;
         }
 
         .stats {
@@ -127,16 +147,19 @@
             gap: 14px;
             margin-top: 28px;
             grid-template-columns: repeat(1, minmax(0, 1fr));
+            position: relative;
+            z-index: 1;
         }
 
         .stat {
             padding: 18px;
             border-radius: 18px;
-            background: linear-gradient(180deg, #FFFFFF 0%, #FFF8F1 100%);
-            border: 1px solid var(--panel-border);
-            box-shadow: 0 10px 24px rgba(13, 71, 161, 0.05);
+            background: rgba(255, 255, 255, 0.10);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
             position: relative;
             overflow: hidden;
+            backdrop-filter: blur(10px);
         }
 
         .stat::before {
@@ -153,11 +176,11 @@
             display: block;
             font-size: 1.1rem;
             margin-bottom: 6px;
-            color: var(--primary);
+            color: white;
         }
 
         .stat span {
-            color: var(--text-muted);
+            color: rgba(255, 255, 255, 0.78);
             font-size: 0.92rem;
             line-height: 1.5;
         }
@@ -473,6 +496,10 @@
             .shell { grid-template-columns: 1fr; }
             .hero { min-height: auto; }
         }
+
+        @media (max-width: 600px) {
+            .hero { display: none; }
+        }
     </style>
 </head>
 <body>
@@ -546,6 +573,18 @@
                     {% if form.last_name.errors %}
                         <ul class="errors" style="margin-top: 10px;">
                             {% for error in form.last_name.errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+
+                <div class="field">
+                    <label for="id_email">Email Address</label>
+                    {{ form.email }}
+                    {% if form.email.errors %}
+                        <ul class="errors" style="margin-top: 10px;">
+                            {% for error in form.email.errors %}
                                 <li>{{ error }}</li>
                             {% endfor %}
                         </ul>

@@ -1,13 +1,27 @@
-{% extends 'base.html' %}
+{% extends 'dashboard_layout.html' %}
 
 {% block title %}Price History - FuelSync{% endblock %}
 
-{% block content %}
+{% block page_content %}
 <div class="container" style="padding: 2rem 0;">
     <h1>Price History</h1>
     <p>Track fuel price changes over time.</p>
 
-    <section style="background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1rem; margin-bottom: 1.25rem;">
+    <section style="background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1rem; margin-bottom: 1rem;">
+        <h2 style="font-size: 1.1rem; margin-top: 0;">Current Fuel Prices</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem;">
+            {% for fuel in current_prices %}
+            <div style="border: 1px solid #eef2f7; border-radius: 8px; padding: 0.75rem; background: #f8fafc;">
+                <div style="font-size: 0.9rem; color: #475569;">{{ fuel.get_name_display }}</div>
+                <div style="font-size: 1.1rem; font-weight: 700; color: #0f172a;">GH₵{{ fuel.current_price|floatformat:2 }}</div>
+            </div>
+            {% empty %}
+            <div style="color: #6b7280;">No fuel prices available.</div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section style="background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 1rem;">
         <h2 style="font-size: 1.1rem; margin-top: 0;">Local Price History</h2>
         <div style="overflow-x: auto;">
             <table style="width: 100%; border-collapse: collapse;">
@@ -16,6 +30,7 @@
                         <th style="padding: 0.7rem; text-align: left;">ID</th>
                         <th style="padding: 0.7rem; text-align: left;">Diesel</th>
                         <th style="padding: 0.7rem; text-align: left;">Petrol</th>
+                        <th style="padding: 0.7rem; text-align: left;">Super</th>
                         <th style="padding: 0.7rem; text-align: left;">Current Rate</th>
                         <th style="padding: 0.7rem; text-align: left;">Created At</th>
                     </tr>
@@ -26,12 +41,13 @@
                         <td style="padding: 0.7rem;">{{ row.id }}</td>
                         <td style="padding: 0.7rem;">{% if row.diesel is not None %}GH₵{{ row.diesel|floatformat:2 }}{% else %}-{% endif %}</td>
                         <td style="padding: 0.7rem;">{% if row.petrol is not None %}GH₵{{ row.petrol|floatformat:2 }}{% else %}-{% endif %}</td>
-                        <td style="padding: 0.7rem;">GH₵{{ row.current_rate|floatformat:2 }}</td>
-                        <td style="padding: 0.7rem;">{{ row.created_at|date:'Y-m-d H:i' }}</td>
+                        <td style="padding: 0.7rem;">{% if row.super is not None %}GH₵{{ row.super|floatformat:2 }}{% else %}-{% endif %}</td>
+                        <td style="padding: 0.7rem;">{% if row.current_rate is not None %}GH₵{{ row.current_rate|floatformat:2 }}{% else %}-{% endif %}</td>
+                        <td style="padding: 0.7rem;">{{ row.created_at|date:'Y-m-d' }}</td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" style="padding: 1rem; text-align: center; color: #6b7280;">No local price records found.</td>
+                        <td colspan="6" style="padding: 1rem; text-align: center; color: #6b7280;">No local price records found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

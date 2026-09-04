@@ -14,6 +14,10 @@ from pathlib import Path
 from decouple import config
 import dj_database_url
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -26,10 +30,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-# Local/default hosts for development and Django test client.
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [h.strip() for h in v.split(',')])
 
 
 # Application definition
@@ -98,17 +101,25 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': config('DB_NAME'),
-        'USER': config('DB_USER'),
-        'PASSWORD': config('DB_PASSWORD'),
-        'HOST': config('DB_HOST'),
-        'PORT': config('DB_PORT'),
+_database_url = config('DATABASE_URL', default=None)
+if _database_url:
+    DATABASES = {'default': dj_database_url.parse(_database_url, conn_max_age=600)}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.getenv('DB_NAME', 'postgres'),
+            'USER': os.getenv('DB_USER', 'postgres'),
+            'PASSWORD': os.getenv('DB_PASSWORD', ''),
+            'HOST': os.getenv('DB_HOST', 'localhost'),
+            'PORT': os.getenv('DB_PORT', '5432'),
+        }
     }
-}
+
+# ==================== SUPABASE CONFIGURATION ====================
+SUPABASE_URL = config('SUPABASE_URL', default='')
+SUPABASE_ANON_KEY = config('SUPABASE_ANON_KEY', default='')
+SUPABASE_SERVICE_ROLE_KEY = config('SUPABASE_SERVICE_ROLE_KEY', default='')
 
 
 # Password validation
@@ -179,14 +190,56 @@ ARKESEL_API_KEY = config("ARKESEL_API_KEY", default="")
 ARKESEL_SMS_URL = config("ARKESEL_SMS_URL", default="https://sms.arkesel.com/api/v2/sms/send")
 ARKESEL_BALANCE_URL = config("ARKESEL_BALANCE_URL", default="")
 
-CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://127.0.0.1:6379/0")
-CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default=CELERY_BROKER_URL)
-CELERY_TASK_ALWAYS_EAGER = config("CELERY_TASK_ALWAYS_EAGER", default=False, cast=bool)
+# ==================== UPSTASH REDIS ====================
+# REST credentials (used by upstash-redis SDK if you call the HTTP API directly).
+UPSTASH_REDIS_REST_URL   = config("UPSTASH_REDIS_REST_URL",   default="").strip().strip('"')
+UPSTASH_REDIS_REST_TOKEN = config("UPSTASH_REDIS_REST_TOKEN", default="").strip().strip('"')
+
+# Full Redis TLS URL — Upstash uses port 6379 with TLS (rediss://).
+# The REST token is also the Redis password.
+# Auto-constructed from REST credentials if UPSTASH_REDIS_URL is not set explicitly.
+_upstash_redis_url_explicit = config("UPSTASH_REDIS_URL", default="").strip().strip('"')
+if _upstash_redis_url_explicit:
+    UPSTASH_REDIS_URL = _upstash_redis_url_explicit
+elif UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN:
+    import urllib.parse as _urlparse
+    _host = UPSTASH_REDIS_REST_URL.replace("https://", "").replace("http://", "").rstrip("/")
+    _pw   = _urlparse.quote(UPSTASH_REDIS_REST_TOKEN, safe="")
+    UPSTASH_REDIS_URL = f"rediss://default:{_pw}@{_host}:6379"
+else:
+    UPSTASH_REDIS_URL = None
+
+_redis_url = UPSTASH_REDIS_URL or config("CELERY_BROKER_URL", default="redis://127.0.0.1:6379/0")
+
+CELERY_BROKER_URL            = _redis_url
+CELERY_RESULT_BACKEND        = config("CELERY_RESULT_BACKEND", default=_redis_url)
+CELERY_TASK_ALWAYS_EAGER     = config("CELERY_TASK_ALWAYS_EAGER", default=False, cast=bool)
 CELERY_TASK_EAGER_PROPAGATES = config("CELERY_TASK_EAGER_PROPAGATES", default=False, cast=bool)
+
+# SSL options required for Upstash TLS connections (rediss://)
+if _redis_url.startswith("rediss://"):
+    CELERY_BROKER_TRANSPORT_OPTIONS = {"ssl_cert_reqs": None}
+    CELERY_REDIS_BACKEND_USE_SSL     = {"ssl_cert_reqs": None}
+
+# ==================== DJANGO CACHE ====================
+if UPSTASH_REDIS_URL and not DEBUG:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": UPSTASH_REDIS_URL,
+            "OPTIONS": {"ssl_cert_reqs": None},
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }
 
 # Email defaults for PDF receipt delivery
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="no-reply@fuelsync.com")
-LOGIN_REDIRECT_URL = "/"
+LOGIN_REDIRECT_URL = "/dashboard/"
 LOGOUT_REDIRECT_URL = "login"
 LOGIN_URL = "/accounts/login/"
 
@@ -202,6 +255,28 @@ SITE_ID = 1
 
 # Allow social provider login to start on GET requests (skip confirmation page)
 SOCIALACCOUNT_LOGIN_ON_GET = True
+
+# If a Google email matches an existing account, log in as that user (safe with
+# trusted providers like Google that verify email ownership).
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+
+# Google already verifies emails — skip allauth's own email verification step.
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
+
+# Google OAuth credentials — set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APP': {
+            'client_id': config('GOOGLE_CLIENT_ID', default=''),
+            'secret':    config('GOOGLE_CLIENT_SECRET', default=''),
+            'key':       '',
+        },
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+        'OAUTH_PKCE_ENABLED': True,
+    }
+}
 
 
 # Use BigAutoField for implicit primary keys in app models.
@@ -240,7 +315,7 @@ REST_FRAMEWORK = {
 
 # ==================== DRF SPECTACULAR (API DOCUMENTATION) ====================
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Smart Fuel Station Management API',
+    'TITLE': 'Smart Fuelcourt Monitoring System API',
     'DESCRIPTION': 'API for fuel station inventory, pumps, sales, and payments',
     'VERSION': '1.0.0',
     'SERVE_PERMISSIONS': ['rest_framework.permissions.IsAuthenticated'],

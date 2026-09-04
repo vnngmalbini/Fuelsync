@@ -68,6 +68,7 @@ body {
     background-color: var(--neutral-light-gray);
     line-height: 1.6;
     font-weight: 400;
+    overflow-x: hidden;
 }
 
 /* ==================== LAYOUT: NAVBAR, MAIN, FOOTER ==================== */

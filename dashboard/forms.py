@@ -12,6 +12,23 @@ from station.models import Staff, StaffRole
 User = get_user_model()
 
 
+def normalize_ghana_phone(phone):
+    phone = (phone or "").strip()
+    digits = "".join(ch for ch in phone if ch.isdigit())
+
+    if digits.startswith("233") and len(digits) == 12:
+        return f"+{digits}"
+
+    # Strip leading zero from local format (0XX-XXX-XXXX = 10 digits, or mistyped 9-digit with 0)
+    if digits.startswith("0"):
+        digits = digits[1:]
+
+    if len(digits) == 9:
+        return f"+233{digits}"
+
+    return phone
+
+
 class PhoneAuthenticationForm(AuthenticationForm):
     ROLE_CHOICES = [
         ('admin', 'Administrator'),
@@ -21,7 +38,7 @@ class PhoneAuthenticationForm(AuthenticationForm):
 
     username = forms.CharField(
         label="Phone Number (+233)",
-        widget=forms.TextInput(attrs={"autofocus": True, "placeholder": "50 XXX XXXX", "maxlength": "10"}),
+        widget=forms.TextInput(attrs={"autofocus": True, "placeholder": "50 XXX XXXX", "maxlength": "20"}),
     )
     
     role = forms.ChoiceField(
@@ -38,8 +55,7 @@ class PhoneAuthenticationForm(AuthenticationForm):
         password = self.cleaned_data.get("password")
         
         if username and password:
-            # Add +233 prefix for authentication
-            full_phone = f"+233{username.strip()}"
+            full_phone = normalize_ghana_phone(username)
             # Authenticate using phone number
             self.user_cache = self._authenticate(full_phone, password)
             if self.user_cache is None:
@@ -70,7 +86,7 @@ class PhoneSignupForm(UserCreationForm):
     ]
 
     phone = forms.CharField(
-        max_length=10,
+        max_length=20,
         required=True,
         widget=forms.TextInput(attrs={
             'class': 'form-control',
@@ -109,7 +125,18 @@ class PhoneSignupForm(UserCreationForm):
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ("first_name", "last_name", "password1", "password2")
+        fields = ("first_name", "last_name", "email", "password1", "password2")
+
+    email = forms.EmailField(
+        max_length=254,
+        required=True,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'you@example.com',
+            'required': True,
+        }),
+        label="Email Address"
+    )
 
     @staticmethod
     def _build_unique_username(phone):
@@ -128,8 +155,9 @@ class PhoneSignupForm(UserCreationForm):
         phone = self.cleaned_data["phone"].strip()
         if not phone:
             raise forms.ValidationError("Phone number is required.")
-        # Add +233 prefix
-        full_phone = f"+233{phone}"
+        full_phone = normalize_ghana_phone(phone)
+        if not full_phone.startswith("+233") or len(full_phone) < 13:
+            raise forms.ValidationError("Enter a valid Ghana phone number.")
         if UserProfile.objects.filter(phone=full_phone).exists():
             raise forms.ValidationError("An account with this phone number already exists.")
         return full_phone
@@ -140,11 +168,20 @@ class PhoneSignupForm(UserCreationForm):
             raise forms.ValidationError("First name is required.")
         return first_name
 
+    def clean_email(self):
+        email = self.cleaned_data.get('email', '').strip()
+        if not email:
+            raise forms.ValidationError('Email is required.')
+        if User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError('An account with this email already exists.')
+        return email
+
     def save(self, commit=True):
         user = super().save(commit=False)
         user.username = self._build_unique_username(self.cleaned_data["phone"])
         user.first_name = self.cleaned_data["first_name"]
         user.last_name = self.cleaned_data.get("last_name", "")
+        user.email = self.cleaned_data.get('email', '').strip()
         selected_role = self.cleaned_data.get("role", "attendant")
 
         if selected_role == 'admin':
@@ -212,6 +249,17 @@ class ProfilePictureForm(forms.ModelForm):
             'dark_mode': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
+    def clean_phone(self):
+        phone = self.cleaned_data.get('phone', '').strip()
+        if not phone:
+            return phone
+        full_phone = normalize_ghana_phone(phone)
+        if not full_phone.startswith('+233') or len(full_phone) < 13:
+            raise forms.ValidationError("Enter a valid Ghana phone number.")
+        if UserProfile.objects.filter(phone=full_phone).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError("Another account already uses this phone number.")
+        return full_phone
+
 
 class ProfilePreferencesForm(forms.ModelForm):
     class Meta:
@@ -263,7 +311,7 @@ class AvatarUploadForm(forms.ModelForm):
             
         except (IOError, OSError):
             raise ValidationError("Invalid image file. Please upload a valid image.")
-        
+
         return profile_picture
 
 

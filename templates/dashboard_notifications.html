@@ -1,0 +1,98 @@
+{% extends 'dashboard_layout.html' %}
+{% load static %}
+
+{% block title %}Notifications - FuelSync{% endblock %}
+
+{% block dashboard_extra_css %}
+<style>
+    .notifications-shell {
+        align-content: start;
+        grid-auto-rows: max-content;
+    }
+
+    .notif-list{max-height:none;}
+    .notif-row{display:flex;align-items:flex-start;gap:12px;padding:16px 22px;border-bottom:1px solid rgba(15,23,42,0.06);}
+    .notif-row:last-child{border-bottom:0;}
+    .notif-dot{width:8px;height:8px;border-radius:50%;background:#2563eb;flex-shrink:0;margin-top:6px;}
+    .notif-dot.read{background:transparent;}
+    .notif-body{flex:1;min-width:0;}
+    .notif-title{font-weight:700;font-size:0.9rem;color:#0f172a;margin:0;}
+    .notif-message{font-size:0.85rem;color:#64748b;margin:3px 0 0;}
+    .notif-time{font-size:0.75rem;color:#94a3b8;margin:5px 0 0;}
+    .notif-mark-btn{border:none;background:rgba(15,23,42,0.05);color:#334155;padding:6px 14px;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:background 0.15s ease;}
+    .notif-mark-btn:hover{background:rgba(37,99,235,0.1);color:#2563eb;}
+    .panel-link-btn{border:none;background:none;color:#2563eb;font-weight:700;font-size:0.85rem;cursor:pointer;padding:0;}
+    .panel-link-btn:hover{text-decoration:underline;}
+</style>
+{% endblock %}
+
+{% block page_content %}
+<div class="page-shell notifications-shell">
+    <div class="page-header">
+        <div class="page-header-copy">
+            <h1 class="page-title">Notifications</h1>
+            <p class="page-subtitle">Station-wide alerts — low stock, pricing changes, and system updates.</p>
+        </div>
+    </div>
+
+    <form id="notifCsrfForm" style="display:none;">{% csrf_token %}</form>
+    <div class="content-card">
+        <div class="content-card-header">
+            <h2 class="content-card-title"><i class="bi bi-bell"></i> All Notifications</h2>
+            <div style="display:flex;align-items:center;gap:14px;">
+                <span class="content-card-count" id="notifUnreadCount">{{ notification_unread_count }} unread</span>
+                <button type="button" class="panel-link-btn" id="notifMarkAllBtn">Mark all read</button>
+            </div>
+        </div>
+        <div class="notif-list" id="notificationPanelList">
+            {% for n in notification_panel %}
+            <div class="notif-row" data-notification-id="{{ n.id }}">
+                <div class="notif-dot{% if n.is_read %} read{% endif %}"></div>
+                <div class="notif-body">
+                    <p class="notif-title">{{ n.title }}</p>
+                    <p class="notif-message">{{ n.message }}</p>
+                    <p class="notif-time">{{ n.created_at }}</p>
+                </div>
+                {% if not n.is_read %}
+                <button type="button" class="notif-mark-btn notif-mark-read-btn" data-notification-id="{{ n.id }}">Mark read</button>
+                {% endif %}
+            </div>
+            {% empty %}
+            <div class="empty-state"><i class="bi bi-bell"></i><p>No notifications.</p></div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+(function(){
+    var csrfInput = document.querySelector('#notifCsrfForm [name=csrfmiddlewaretoken]');
+    var csrftoken = csrfInput ? csrfInput.value : '';
+
+    function markRead(id){
+        return fetch('/api/v1/station/notifications/' + id + '/mark_as_read/', {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrftoken},
+            credentials: 'same-origin',
+        });
+    }
+
+    document.querySelectorAll('.notif-mark-read-btn').forEach(function(btn){
+        btn.addEventListener('click', function(){
+            markRead(btn.getAttribute('data-notification-id')).then(function(){ location.reload(); });
+        });
+    });
+
+    var markAllBtn = document.getElementById('notifMarkAllBtn');
+    if (markAllBtn) {
+        markAllBtn.addEventListener('click', function(){
+            fetch('/api/v1/station/notifications/mark_all_as_read/', {
+                method: 'POST',
+                headers: {'X-CSRFToken': csrftoken},
+                credentials: 'same-origin',
+            }).then(function(){ location.reload(); });
+        });
+    }
+})();
+</script>
+{% endblock %}

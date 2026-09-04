@@ -4,7 +4,7 @@ from django.urls import reverse
 from .models import (
     FuelType, FuelInventory, Pump, StaffRole, Staff, Customer,
     LoyaltyTier, CustomerReward, Transaction, Receipt, Notification,
-    FuelPriceHistory, DailySalesReport, AuditLog, Payment
+    FuelPriceHistory, DailySalesReport, AuditLog, Payment, Attendance
 )
 
 
@@ -282,16 +282,17 @@ class NotificationAdmin(admin.ModelAdmin):
 
 @admin.register(FuelPriceHistory)
 class FuelPriceHistoryAdmin(admin.ModelAdmin):
-    list_display = ['fuel_type', 'old_price', 'new_price', 'changed_by_name', 'created_at']
-    list_filter = ['fuel_type', 'created_at']
-    search_fields = ['fuel_type__name', 'reason']
+    list_display = ['id', 'diesel', 'petrol', 'super', 'current_rate', 'created_at']
+    list_filter = ['created_at']
     readonly_fields = ['created_at']
-    
-    def changed_by_name(self, obj):
-        if obj.changed_by:
-            return obj.changed_by.user.get_full_name() or obj.changed_by.user.username
-        return "System"
-    changed_by_name.short_description = 'Changed By'
+
+
+@admin.register(Attendance)
+class AttendanceAdmin(admin.ModelAdmin):
+    list_display = ['staff', 'event_type', 'confidence', 'created_at']
+    list_filter = ['event_type', 'created_at']
+    search_fields = ['staff__user__first_name', 'staff__user__last_name']
+    readonly_fields = ['created_at']
 
 
 @admin.register(DailySalesReport)

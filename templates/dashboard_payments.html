@@ -1,39 +1,149 @@
-{% extends 'base.html' %}
+{% extends 'dashboard_layout.html' %}
 
 {% block title %}Payments - FuelSync{% endblock %}
 
-{% block content %}
-<div class="container" style="padding: 2rem 0;">
-    <h1>Payments</h1>
-    <p>Pending: <strong>{{ pending_count }}</strong> | Completed: <strong>{{ completed_count }}</strong> | Failed: <strong>{{ failed_count }}</strong></p>
+{% block page_content %}
+<style>
+    .payments-container {
+        padding: 2rem 0;
+    }
+    
+    .payments-header {
+        margin-bottom: 1.5rem;
+    }
+    
+    .payments-header h1 {
+        margin: 0;
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1f2937;
+    }
+    
+    /* Fixed height table with internal scroll */
+    .table-wrapper {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        
+        /* Stretch to fill entire viewport height */
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Make table scrollable internally */
+    .table-scroll {
+        overflow-y: auto;
+        overflow-x: auto;
+        flex: 1;
+    }
+    
+    /* Keep header sticky */
+    .table-scroll table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .table-scroll thead {
+        background: #f9fafb;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .table-scroll th {
+        padding: 0.75rem;
+        text-align: left;
+        font-weight: 600;
+        color: #374151;
+        border-bottom: 2px solid #d1d5db;
+        background: #f9fafb;
+    }
+    
+    .table-scroll tbody tr {
+        border-top: 1px solid #e5e7eb;
+        transition: background 0.15s ease;
+    }
+    
+    .table-scroll tbody tr:hover {
+        background: #f9fafb;
+    }
+    
+    .table-scroll td {
+        padding: 0.75rem;
+        color: #1f2937;
+    }
+    
+    /* Scrollbar styling */
+    .table-scroll::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    
+    .table-scroll::-webkit-scrollbar-track {
+        background: #f3f4f6;
+    }
+    
+    .table-scroll::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 4px;
+    }
+    
+    .table-scroll::-webkit-scrollbar-thumb:hover {
+        background: #9ca3af;
+    }
+    
+    /* Firefox scrollbar */
+    .table-scroll {
+        scrollbar-color: #d1d5db #f3f4f6;
+        scrollbar-width: thin;
+    }
+    
+    .empty-message {
+        padding: 2rem;
+        text-align: center;
+        color: #6b7280;
+    }
+</style>
 
-    <div style="overflow-x: auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;">
-        <table style="width: 100%; border-collapse: collapse;">
-            <thead style="background: #f9fafb;">
-                <tr>
-                    <th style="padding: 0.75rem; text-align: left;">Reference</th>
-                    <th style="padding: 0.75rem; text-align: left;">Amount</th>
-                    <th style="padding: 0.75rem; text-align: left;">Method</th>
-                    <th style="padding: 0.75rem; text-align: left;">Status</th>
-                    <th style="padding: 0.75rem; text-align: left;">Created</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for payment in payments %}
-                <tr style="border-top: 1px solid #e5e7eb;">
-                    <td style="padding: 0.75rem;">{{ payment.reference }}</td>
-                    <td style="padding: 0.75rem;">GH₵{{ payment.amount|floatformat:2 }}</td>
-                    <td style="padding: 0.75rem;">{{ payment.payment_method }}</td>
-                    <td style="padding: 0.75rem; text-transform: capitalize;">{{ payment.status }}</td>
-                    <td style="padding: 0.75rem;">{{ payment.created_at|date:"Y-m-d H:i" }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" style="padding: 1rem; text-align: center; color: #6b7280;">No payments found.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+<div class="payments-container">
+    <div class="payments-header">
+        <h1>Payments</h1>
+    </div>
+
+    <div class="table-wrapper">
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="padding: 0.75rem; text-align: left;">Reference</th>
+                        <th style="padding: 0.75rem; text-align: left;">Fuel Type</th>
+                        <th style="padding: 0.75rem; text-align: left;">Amount</th>
+                        <th style="padding: 0.75rem; text-align: left;">Method</th>
+                        <th style="padding: 0.75rem; text-align: left;">Status</th>
+                        <th style="padding: 0.75rem; text-align: left;">Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payments %}
+                    <tr>
+                        <td style="padding: 0.75rem;">{{ payment.reference }}</td>
+                        <td style="padding: 0.75rem;">{% if payment.transaction and payment.transaction.fuel_type %}{{ payment.transaction.fuel_type.get_name_display }}{% else %}Not assigned{% endif %}</td>
+                        <td style="padding: 0.75rem;">GH₵{{ payment.amount|floatformat:2 }}</td>
+                        <td style="padding: 0.75rem;">{{ payment.payment_method }}</td>
+                        <td style="padding: 0.75rem; text-transform: capitalize;">{{ payment.status }}</td>
+                        <td style="padding: 0.75rem;">{{ payment.created_at|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="empty-message">No payments found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 {% endblock %}

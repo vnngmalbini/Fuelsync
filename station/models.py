@@ -1,3 +1,4 @@
+import datetime
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -6,10 +7,11 @@ from decimal import Decimal
 # ==================== FUEL INVENTORY MODELS ====================
 
 class FuelType(models.Model):
-    """Fuel types: Petrol, Diesel, LPG"""
+    """Fuel types: Petrol, Diesel, Super, LPG"""
     FUEL_CHOICES = [
-        ('petrol', 'Petrol (Premium 95)'),
+        ('petrol', 'Petrol'),
         ('diesel', 'Diesel'),
+        ('super', 'Super'),
         ('lpg', 'LPG (Liquefied Petroleum Gas)'),
     ]
     
@@ -273,23 +275,47 @@ class Notification(models.Model):
         return f"{self.notification_type}: {self.title}"
 
 
+# ==================== ATTENDANCE ====================
+
+class Attendance(models.Model):
+    """Facial-recognition based staff clock in/out events"""
+    EVENT_TYPE_CHOICES = [
+        ('clock_in', 'Clock In'),
+        ('clock_out', 'Clock Out'),
+    ]
+
+    staff = models.ForeignKey(Staff, on_delete=models.CASCADE, related_name='attendance_records')
+    event_type = models.CharField(max_length=20, choices=EVENT_TYPE_CHOICES)
+    confidence = models.FloatField(help_text="LBPH distance at match time (lower = better match)")
+    captured_image = models.ImageField(upload_to='attendance_captures/%Y/%m/%d/', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.staff} - {self.get_event_type_display()} @ {self.created_at:%Y-%m-%d %H:%M}"
+
+
 # ==================== FUEL PRICE HISTORY ====================
 
 class FuelPriceHistory(models.Model):
-    """Track fuel price changes"""
-    fuel_type = models.ForeignKey(FuelType, on_delete=models.CASCADE, related_name='price_history')
-    old_price = models.DecimalField(max_digits=10, decimal_places=2)
-    new_price = models.DecimalField(max_digits=10, decimal_places=2)
-    changed_by = models.ForeignKey(Staff, on_delete=models.SET_NULL, null=True, blank=True)
-    reason = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    """Snapshot of fuel prices (diesel, petrol, LPG) at a point in time"""
+    diesel = models.FloatField(default=0.0)
+    petrol = models.FloatField(default=0.0)
+    super = models.FloatField(null=True, blank=True)
+    current_rate = models.FloatField(default=0.0)
+    created_at = models.DateField(default=datetime.date.today)
     
     class Meta:
         verbose_name_plural = "Fuel Price Histories"
         ordering = ['-created_at']
     
     def __str__(self):
-        return f"{self.fuel_type} - {self.old_price} → {self.new_price}"
+        return (
+            f"Prices on {self.created_at}: diesel={self.diesel}, "
+            f"petrol={self.petrol}, super={self.super}, rate={self.current_rate}"
+        )
 
 
 # ==================== ANALYTICS & REPORTS ====================

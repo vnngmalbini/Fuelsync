@@ -3,11 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Smart Fuel Station Management System">
+    <meta name="description" content="Smart Fuelcourt Monitoring System">
     <title>{% block title %}FuelSync - Fuel Station Management{% endblock %}</title>
     
     <!-- Stylesheets -->
     {% load static %}
+    <!-- Favicons -->
+    <link rel="shortcut icon" href="{% static 'images/shell.jpg' %}">
+    <link rel="icon" type="image/x-icon" href="{% static 'images/shell.jpg' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'images/shell.jpg' %}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'images/shell.jpg' %}">
+    <link rel="apple-touch-icon" href="{% static 'images/shell.jpg' %}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{% static 'css/fuelsync-core.css' %}?v=20260504a">
     <link rel="stylesheet" href="{% static 'css/smartfuel-modern.css' %}?v=20260504a">
@@ -20,6 +26,15 @@
             --secondary-green: #2ecc71;
             --accent-orange: #f39c12;
         }
+        .brand-logo-img {
+            width: 34px;
+            height: 34px;
+            object-fit: contain;
+            margin-right: 8px;
+            border-radius: 6px;
+            box-shadow: 0 6px 14px rgba(18, 52, 86, 0.08);
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body class="{% block body_class %}{% endblock %}">
@@ -28,7 +43,7 @@
         <div class="navbar-container">
             <div class="navbar-brand">
                 <a href="{% url 'root' %}" class="brand-logo">
-                    <i class="bi bi-fuel-pump"></i> <span>FuelSync</span>
+                    <img src="{% static 'images/shell.jpg' %}" alt="FuelSync" class="brand-logo-img"> <span>FuelSync</span>
                 </a>
             </div>
             

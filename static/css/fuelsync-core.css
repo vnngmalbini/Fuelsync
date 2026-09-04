@@ -28,6 +28,7 @@
 
 html {
     scroll-behavior: smooth;
+    overflow-x: hidden;
 }
 
 body {
@@ -36,6 +37,7 @@ body {
     color: var(--text);
     background: var(--bg);
     line-height: 1.6;
+    overflow-x: hidden;
 }
 
 .messages,

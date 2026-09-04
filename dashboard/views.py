@@ -1,13 +1,18 @@
 from datetime import datetime, timedelta
 from collections import defaultdict
+import base64
+import json
 import logging
 
+import numpy as np
+import cv2
 from django.contrib import messages
 from django.contrib.auth import logout, authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
+from django.core.files.base import ContentFile
 from django.db.models import Sum, Count, Q
-from django.shortcuts import redirect, render
+from django.shortcuts import redirect, render, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
 from django.http import JsonResponse
@@ -28,12 +33,42 @@ from .permissions import get_user_role, role_required
 from .models import UserProfile
 from .models import DashboardDailySummary, refresh_dashboard_summary, refresh_daily_sales_report
 from station.models import (
-    FuelInventory, Notification, Pump, Transaction, 
-    FuelType, Staff, Receipt, Customer, DailySalesReport, Payment, FuelPriceHistory
+    FuelInventory, Notification, Pump, Transaction,
+    FuelType, Staff, StaffRole, Receipt, Customer, DailySalesReport, Payment, FuelPriceHistory,
+    Attendance
 )
-from payment.models import SMSDeliveryLog, PaymentAuditLog
+from station.face_recognition_service import recognize_frame
 from payment.notifications import build_test_sms_message, get_sms_provider_status, queue_sms_delivery, record_payment_audit
 from payment.services import normalize_phone_number
+
+
+def _get_or_create_own_staff(user):
+    """Every logged-in staff-role user (admin/manager/attendant) should be able to use
+    attendance, even if a Staff row was never created for them (e.g. accounts provisioned
+    outside the normal signup form). Auto-provision one on first use instead of blocking."""
+    staff = Staff.objects.filter(user=user, is_active=True).first()
+    if staff:
+        return staff
+
+    role_name = get_user_role(user) or 'attendant'
+    if role_name not in {'admin', 'manager', 'attendant'}:
+        return None
+
+    staff_role, _ = StaffRole.objects.get_or_create(
+        name=role_name,
+        defaults={'permissions': 'dashboard,inventory,pumps,sales,payments'},
+    )
+    staff, _ = Staff.objects.update_or_create(
+        user=user,
+        defaults={
+            'role': staff_role,
+            'phone': getattr(UserProfile.objects.filter(user=user).first(), 'phone', '') or '',
+            'date_hired': timezone.localdate(),
+            'salary': 0,
+            'is_active': True,
+        },
+    )
+    return staff
 
 
 def _build_dashboard_live_signature():
@@ -283,7 +318,7 @@ def dashboard_home(request):
     weekly_labels = []
     weekly_totals = []
     for txn in daily_transactions:
-        fuel_name = txn.fuel_type.get_name_display()
+        fuel_name = txn.fuel_type.get_name_display() if txn.fuel_type else 'Unknown'
         fuel_type_totals[fuel_name] = fuel_type_totals.get(fuel_name, 0) + float(txn.total_amount)
         weekly_labels.append(txn.created_at.strftime('%a'))
         weekly_totals.append(float(txn.total_amount))
@@ -418,6 +453,32 @@ def dashboard_home(request):
     greeting_hour = current_time.hour
     greeting = 'morning' if greeting_hour < 12 else 'afternoon' if greeting_hour < 18 else 'evening'
 
+    own_staff_record = None
+    own_last_event = None
+    attendance_widget = {
+        'show': False,
+        'has_face': False,
+        'shift_open': False,
+        'marked_today': False,
+        'marked_time': None,
+        'closed_today': False,
+        'closed_time': None,
+    }
+    if user_role in {'admin', 'manager', 'attendant'}:
+        own_staff_record = _get_or_create_own_staff(request.user)
+        if own_staff_record:
+            own_last_event = Attendance.objects.filter(staff=own_staff_record).order_by('-created_at').first()
+            own_shift_open = own_last_event is not None and own_last_event.event_type == 'clock_in'
+            attendance_widget = {
+                'show': True,
+                'has_face': bool(own_staff_record.profile_picture),
+                'shift_open': own_shift_open,
+                'marked_today': own_shift_open,
+                'marked_time': timezone.localtime(own_last_event.created_at).strftime('%I:%M %p on %b %d') if own_shift_open and own_last_event else None,
+                'closed_today': own_last_event is not None and own_last_event.event_type == 'clock_out',
+                'closed_time': timezone.localtime(own_last_event.created_at).strftime('%I:%M %p on %b %d') if own_last_event and own_last_event.event_type == 'clock_out' else None,
+            }
+
     sparkline_map = {
         'revenue': revenue_trend_values[-8:] or [0],
         'transactions': transaction_trend_values[-8:] or [0],
@@ -499,7 +560,7 @@ def dashboard_home(request):
         })
 
     recent_alerts = notification_data[:3]
-    
+
     has_dashboard_data = True
     
     context = {
@@ -539,9 +600,10 @@ def dashboard_home(request):
         'weekly_labels': weekly_labels,
         'weekly_totals': weekly_totals,
         'peak_hours': peak_hours,
+        'attendance_widget': attendance_widget,
         'live_signature': _build_dashboard_live_signature(),
     }
-    
+
     return render(request, "dashboard_saas.html", context)
 
 
@@ -623,18 +685,6 @@ def settings_view(request):
     })
     sms_provider_status = get_sms_provider_status()
 
-    sms_logs = []
-    sms_audit_logs = []
-    if can_manage_sms:
-        sms_logs = list(
-            SMSDeliveryLog.objects.select_related('transaction', 'transaction__customer')
-            .order_by('-created_at')[:20]
-        )
-        sms_audit_logs = list(
-            PaymentAuditLog.objects.select_related('transaction', 'payment', 'user')
-            .order_by('-created_at')[:20]
-        )
-
     if request.method == "POST":
         if "send_test_sms" in request.POST:
             if not can_manage_sms:
@@ -696,6 +746,8 @@ def settings_view(request):
         avatar_form = AvatarUploadForm(instance=profile)
         preferences_form = ProfilePreferencesForm(instance=profile)
 
+    own_staff_record = _get_or_create_own_staff(request.user)
+
     return render(
         request,
         "settings.html",
@@ -706,9 +758,8 @@ def settings_view(request):
             "display_name": display_name,
             "sms_test_form": sms_test_form,
             "sms_provider_status": sms_provider_status,
-            "sms_logs": sms_logs,
-            "sms_audit_logs": sms_audit_logs,
             "can_manage_sms": can_manage_sms,
+            "staff": own_staff_record,
         },
     )
 
@@ -741,6 +792,25 @@ def inventory_page(request):
 
 @login_required
 @role_required('admin', 'manager', 'attendant')
+def inventory_live_api(request):
+    inventory = FuelInventory.objects.select_related('fuel_type').exclude(
+        fuel_type__name__iexact='lpg'
+    )
+    rows = []
+    for item in inventory:
+        percentage = (item.quantity_liters / item.max_capacity * 100) if item.max_capacity else 0
+        rows.append({
+            'fuel_name': item.fuel_type.get_name_display(),
+            'quantity_liters': float(item.quantity_liters),
+            'max_capacity': float(item.max_capacity),
+            'percentage': float(percentage),
+            'is_low_stock': item.is_low_stock(),
+        })
+    return JsonResponse({'status': 'success', 'inventory': rows})
+
+
+@login_required
+@role_required('admin', 'manager', 'attendant')
 def pumps_page(request):
     pumps = Pump.objects.select_related('fuel_type').exclude(fuel_type__name__iexact='lpg').order_by('pump_number')
     context = {
@@ -755,12 +825,31 @@ def pumps_page(request):
 
 @login_required
 @role_required('admin', 'manager', 'attendant')
+def pumps_live_api(request):
+    pumps = Pump.objects.select_related('fuel_type').exclude(
+        fuel_type__name__iexact='lpg'
+    ).order_by('pump_number')
+    return JsonResponse({
+        'status': 'success',
+        'pumps': [{
+            'pump_number': pump.pump_number,
+            'fuel_name': pump.fuel_type.get_name_display(),
+            'status': pump.status,
+            'total_liters_dispensed': float(pump.total_liters_dispensed),
+            'total_revenue': float(pump.total_revenue),
+        } for pump in pumps],
+    })
+
+
+@login_required
+@role_required('admin', 'manager', 'attendant')
 def sales_page(request):
-    sales = Transaction.objects.select_related('fuel_type', 'pump', 'customer', 'staff').filter(
+    all_sales = Transaction.objects.select_related('fuel_type', 'pump', 'customer', 'staff').filter(
         status='completed'
     ).exclude(
         fuel_type__name__iexact='lpg'
-    ).order_by('-created_at')[:50]
+    ).order_by('-created_at')
+    sales = all_sales[:50]
 
     totals = Transaction.objects.filter(status='completed').exclude(fuel_type__name__iexact='lpg').aggregate(
         total_revenue=Sum('total_amount'),
@@ -774,6 +863,20 @@ def sales_page(request):
         'total_revenue': totals.get('total_revenue') or 0,
         'total_liters': totals.get('total_liters') or 0,
         'total_count': totals.get('total_count') or 0,
+        'fuel_totals': [
+            {
+                'name': fuel.get_name_display(),
+                'count': Transaction.objects.filter(
+                    status='completed', fuel_type=fuel
+                ).exclude(fuel_type__name__iexact='lpg').count(),
+                'revenue': Transaction.objects.filter(
+                    status='completed', fuel_type=fuel
+                ).exclude(fuel_type__name__iexact='lpg').aggregate(
+                    total=Sum('total_amount')
+                )['total'] or 0,
+            }
+            for fuel in FuelType.objects.exclude(name__iexact='lpg').order_by('name')
+        ],
     }
     return render(request, 'dashboard_sales.html', context)
 
@@ -800,12 +903,31 @@ def reports_page(request):
     end_dt = timezone.make_aware(timezone.datetime.combine(today, timezone.datetime.max.time()))
     today_sales = Transaction.objects.filter(created_at__gte=start_dt, created_at__lte=end_dt, status='completed').exclude(fuel_type__name__iexact='lpg')
 
+    fuel_breakdown = []
+    for fuel in FuelType.objects.exclude(name__iexact='lpg').order_by('name'):
+        fuel_sales = today_sales.filter(fuel_type=fuel)
+        totals = fuel_sales.aggregate(
+            transactions=Count('id'),
+            liters=Sum('liters_dispensed'),
+            revenue=Sum('total_amount'),
+        )
+        liters = totals['liters'] or Decimal('0')
+        revenue = totals['revenue'] or Decimal('0')
+        fuel_breakdown.append({
+            'name': fuel.get_name_display(),
+            'transactions': totals['transactions'] or 0,
+            'liters': liters,
+            'revenue': revenue,
+            'average_price': (revenue / liters) if liters else Decimal('0'),
+        })
+
     context = {
         'page_title': 'Reports',
         'reports': reports,
         'today_revenue': today_sales.aggregate(Sum('total_amount'))['total_amount__sum'] or 0,
         'today_liters': today_sales.aggregate(Sum('liters_dispensed'))['liters_dispensed__sum'] or 0,
         'today_transactions': today_sales.count(),
+        'fuel_breakdown': fuel_breakdown,
     }
     return render(request, 'dashboard_reports.html', context)
 
@@ -813,30 +935,325 @@ def reports_page(request):
 @login_required
 @role_required('admin', 'manager', 'attendant')
 def price_history_page(request):
-    fuel_types = FuelType.objects.exclude(name__iexact='lpg').order_by('id')
-    price_history_rows = []
-
-    for fuel_type in fuel_types:
-        current_rate = fuel_type.current_price
-        price_history_rows.append({
-            'id': fuel_type.id,
-            'diesel': current_rate if fuel_type.name == 'diesel' else None,
-            'petrol': current_rate if fuel_type.name == 'petrol' else None,
-            'current_rate': current_rate,
-            'created_at': fuel_type.price_updated_at,
-        })
-
+    price_history_rows = FuelPriceHistory.objects.all().order_by('id')
+    current_prices = FuelType.objects.exclude(name__iexact='lpg').order_by('name')
     context = {
         'page_title': 'Price History',
         'price_history_rows': price_history_rows,
+        'current_prices': current_prices,
     }
     return render(request, 'dashboard_price_history.html', context)
 
 
 @login_required
 @role_required('admin', 'manager', 'attendant')
+def update_price_page(request):
+    fuel_types = FuelType.objects.exclude(name__iexact='lpg').order_by('name')
+    return render(request, 'dashboard_update_price.html', {
+        'page_title': 'Update Fuel Price',
+        'fuel_types': fuel_types,
+    })
+
+
+@login_required
+@role_required('manager')
+def attendance_dashboard_page(request):
+    """Manager-only page: facial attendance kiosk, live camera feed, notifications,
+    and attendance history."""
+    for inv in FuelInventory.objects.select_related('fuel_type').all():
+        if inv.is_low_stock():
+            Notification.objects.get_or_create(
+                notification_type='low_stock',
+                related_fuel=inv.fuel_type,
+                is_read=False,
+                defaults={
+                    'title': f'Low stock: {inv.fuel_type.get_name_display()}',
+                    'message': f'{inv.fuel_type.get_name_display()} is at {inv.quantity_liters}L, below threshold {inv.min_threshold}L.',
+                },
+            )
+
+    unread_notification_count = Notification.objects.filter(is_read=False).count()
+    notifications = Notification.objects.order_by('-created_at')[:20]
+    attendance_rows = Attendance.objects.select_related('staff__user').order_by('-created_at')[:50]
+    staff_list = Staff.objects.filter(is_active=True).select_related('user', 'role').order_by('user__first_name', 'user__username')
+    enrolled_count = sum(1 for s in staff_list if s.profile_picture)
+    total_active = len(staff_list)
+
+    context = {
+        'page_title': 'Attendance & Fuel Pricing',
+        'notifications': notifications,
+        'unread_notification_count': unread_notification_count,
+        'attendance_rows': attendance_rows,
+        'staff_list': staff_list,
+        'staff_without_photo_count': total_active - enrolled_count,
+    }
+    return render(request, 'dashboard_attendance.html', context)
+
+
+@login_required
+@role_required('manager')
+def attendance_capture_api(request):
+    """POST {'image': 'data:image/jpeg;base64,...'} -> recognize the face against enrolled
+    staff, log an Attendance clock-in/out event, and return the result as JSON."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    try:
+        payload = json.loads(request.body)
+        header, b64data = payload['image'].split(',', 1)
+        img_bytes = base64.b64decode(b64data)
+        frame = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
+        if frame is None:
+            raise ValueError('could not decode image')
+    except (KeyError, ValueError, json.JSONDecodeError):
+        return JsonResponse({'status': 'error', 'message': 'Invalid image payload'}, status=400)
+
+    result = recognize_frame(frame)
+    if not result['matched']:
+        return JsonResponse({'status': 'no_match', 'reason': result['reason']})
+
+    staff = Staff.objects.select_related('user').get(id=result['staff_id'])
+    last_event = Attendance.objects.filter(staff=staff).order_by('-created_at').first()
+    event_type = 'clock_in' if (last_event is None or last_event.event_type == 'clock_out') else 'clock_out'
+
+    yesterday = timezone.now() - timedelta(hours=24)
+    if event_type == 'clock_in':
+        if Attendance.objects.filter(staff=staff, event_type='clock_in', created_at__gte=yesterday).exists():
+            return JsonResponse({
+                'status': 'error',
+                'message': 'You can only log in once.'
+            })
+    else:
+        if Attendance.objects.filter(staff=staff, event_type='clock_out', created_at__gte=yesterday).exists():
+            return JsonResponse({
+                'status': 'error',
+                'message': 'You have already clocked out within the last 24 hours.'
+            })
+
+    attendance = Attendance.objects.create(
+        staff=staff,
+        event_type=event_type,
+        confidence=result['confidence'],
+        captured_image=ContentFile(img_bytes, name=f'{staff.id}_{timezone.now():%Y%m%d%H%M%S}.jpg'),
+    )
+
+    local_dt = timezone.localtime(attendance.created_at)
+    return JsonResponse({
+        'status': 'success',
+        'staff_name': staff.user.get_full_name() or staff.user.username,
+        'event_type': attendance.event_type,
+        'confidence': result['confidence'],
+        'timestamp': attendance.created_at.isoformat(),
+        'date': local_dt.strftime('%b %d, %Y'),
+        'time': local_dt.strftime('%I:%M %p'),
+    })
+
+
+@login_required
+@role_required('manager')
+def attendance_staff_photo_upload(request, staff_id):
+    """POST an image file to enroll/replace a staff member's face-recognition photo."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    staff = get_object_or_404(Staff, pk=staff_id, is_active=True)
+    photo = request.FILES.get('photo')
+    if not photo:
+        return JsonResponse({'status': 'error', 'message': 'No photo provided.'}, status=400)
+
+    staff.profile_picture = photo
+    staff.save(update_fields=['profile_picture', 'updated_at'])
+
+    return JsonResponse({
+        'status': 'success',
+        'staff_id': staff.id,
+        'photo_url': staff.profile_picture.url,
+    })
+
+
+@login_required
+def attendance_self_photo_upload(request):
+    """Self-service face registration: a user enrolls their own attendance photo."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    staff = _get_or_create_own_staff(request.user)
+    if not staff:
+        return JsonResponse({'status': 'error', 'message': 'Attendance is only available for staff accounts.'}, status=403)
+
+    photo = request.FILES.get('photo')
+    if not photo:
+        return JsonResponse({'status': 'error', 'message': 'No photo provided.'}, status=400)
+
+    staff.profile_picture = photo
+    staff.save(update_fields=['profile_picture', 'updated_at'])
+
+    return JsonResponse({'status': 'success', 'photo_url': staff.profile_picture.url})
+
+
+@login_required
+def attendance_self_mark(request):
+    """Auto attendance: recognize the logged-in user's own face and toggle their shift
+    clock-in/clock-out state.
+
+    Uses the last recorded event (not calendar date) to decide whether a clock-in or
+    clock-out is valid -- this matters for night-shift staff whose clock-in and clock-out
+    fall on different calendar dates either side of midnight.
+
+    Frontend calls this repeatedly (no manual 'Verify' step) while the camera is open. Real
+    recognition happens via recognize_frame() -- the same OpenCV/LBPH backend used by the
+    manager kiosk (station/face_recognition_service.py). This is where a future, more advanced
+    recognition/liveness API would be swapped in without the frontend changing shape.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+
+    staff = _get_or_create_own_staff(request.user)
+    if not staff:
+        return JsonResponse({'status': 'error', 'message': 'Attendance is only available for staff accounts.'}, status=403)
+    if not staff.profile_picture:
+        return JsonResponse({'status': 'no_face_registered'})
+
+    try:
+        payload = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid request payload'}, status=400)
+
+    event_type = payload.get('event_type', 'clock_in')
+    if event_type not in ('clock_in', 'clock_out'):
+        return JsonResponse({'status': 'error', 'message': 'Invalid event_type'}, status=400)
+
+    last_event = Attendance.objects.filter(staff=staff).order_by('-created_at').first()
+    shift_open = last_event is not None and last_event.event_type == 'clock_in'
+
+    yesterday = timezone.now() - timedelta(hours=24)
+    if event_type == 'clock_in':
+        if Attendance.objects.filter(staff=staff, event_type='clock_in', created_at__gte=yesterday).exists():
+            return JsonResponse({
+                'status': 'error',
+                'message': 'You can only log in once.'
+            })
+    else:
+        if Attendance.objects.filter(staff=staff, event_type='clock_out', created_at__gte=yesterday).exists():
+            return JsonResponse({
+                'status': 'error',
+                'message': 'You have already clocked out within the last 24 hours.'
+            })
+
+    if event_type == 'clock_in' and shift_open:
+        return JsonResponse({
+            'status': 'already_marked',
+            'event_type': 'clock_in',
+            'time': timezone.localtime(last_event.created_at).strftime('%I:%M %p'),
+        })
+    if event_type == 'clock_out' and not shift_open:
+        if last_event is None:
+            return JsonResponse({'status': 'not_clocked_in'})
+        return JsonResponse({
+            'status': 'already_marked',
+            'event_type': 'clock_out',
+            'time': timezone.localtime(last_event.created_at).strftime('%I:%M %p'),
+        })
+
+    try:
+        header, b64data = payload['image'].split(',', 1)
+        img_bytes = base64.b64decode(b64data)
+        frame = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
+        if frame is None:
+            raise ValueError('could not decode image')
+    except (KeyError, ValueError):
+        return JsonResponse({'status': 'error', 'message': 'Invalid image payload'}, status=400)
+
+    result = recognize_frame(frame)
+    if not result['matched'] or result['staff_id'] != staff.id:
+        reason = result['reason'] or 'identity_mismatch'
+        return JsonResponse({'status': 'no_match', 'reason': reason})
+
+    attendance = Attendance.objects.create(
+        staff=staff,
+        event_type=event_type,
+        confidence=result['confidence'],
+        captured_image=ContentFile(img_bytes, name=f'{staff.id}_{timezone.now():%Y%m%d%H%M%S}.jpg'),
+    )
+
+    return JsonResponse({
+        'status': 'success',
+        'event_type': event_type,
+        'staff_name': staff.user.get_full_name() or staff.user.username,
+        'date': timezone.localdate().strftime('%d %B %Y'),
+        'time': timezone.localtime(attendance.created_at).strftime('%I:%M %p'),
+    })
+
+
+@login_required
+@role_required('admin', 'manager', 'attendant')
+def my_attendance_page(request):
+    """Dedicated page: mark today's attendance (facial recognition) and browse your own
+    clock-in/out history. Kept separate from the main dashboard on purpose."""
+    own_staff_record = _get_or_create_own_staff(request.user)
+    own_last_event = None
+    if own_staff_record:
+        own_last_event = Attendance.objects.filter(staff=own_staff_record).order_by('-created_at').first()
+
+    own_shift_open = own_last_event is not None and own_last_event.event_type == 'clock_in'
+
+    attendance_widget = {
+        'show': own_staff_record is not None,
+        'has_face': bool(own_staff_record.profile_picture) if own_staff_record else False,
+        'shift_open': own_shift_open,
+        'marked_today': own_shift_open,
+        'marked_time': timezone.localtime(own_last_event.created_at).strftime('%I:%M %p on %b %d') if own_shift_open else None,
+        'closed_today': own_last_event is not None and own_last_event.event_type == 'clock_out',
+        'closed_time': timezone.localtime(own_last_event.created_at).strftime('%I:%M %p on %b %d') if (own_last_event and own_last_event.event_type == 'clock_out') else None,
+    }
+
+    attendance_history_panel = []
+    if own_staff_record:
+        for record in Attendance.objects.filter(staff=own_staff_record).order_by('-created_at')[:50]:
+            local_dt = timezone.localtime(record.created_at)
+            attendance_history_panel.append({
+                'event_type': record.event_type,
+                'event_label': 'Check In' if record.event_type == 'clock_in' else 'Check Out',
+                'date': local_dt.strftime('%b %d, %Y'),
+                'time': local_dt.strftime('%I:%M %p'),
+            })
+
+    context = {
+        'page_title': 'My Attendance',
+        'attendance_widget': attendance_widget,
+        'attendance_history_panel': attendance_history_panel,
+    }
+    return render(request, 'dashboard_my_attendance.html', context)
+
+
+@login_required
+@role_required('admin', 'manager', 'attendant')
+def notifications_page(request):
+    """Dedicated page for browsing and managing notifications, separate from the dashboard."""
+    notification_panel = []
+    for notif in Notification.objects.order_by('-created_at')[:50]:
+        notification_panel.append({
+            'id': notif.id,
+            'title': notif.title,
+            'message': notif.message,
+            'type_badge': notif.notification_type.replace('_', ' ').title(),
+            'is_read': notif.is_read,
+            'created_at': timezone.localtime(notif.created_at).strftime('%b %d, %I:%M %p'),
+        })
+    notification_unread_count = Notification.objects.filter(is_read=False).count()
+
+    context = {
+        'page_title': 'Notifications',
+        'notification_panel': notification_panel,
+        'notification_unread_count': notification_unread_count,
+    }
+    return render(request, 'dashboard_notifications.html', context)
+
+
+@login_required
+@role_required('admin', 'manager', 'attendant')
 def payments_page(request):
-    payments_qs = Payment.objects.select_related('transaction').all().order_by('-created_at')
+    payments_qs = Payment.objects.select_related('transaction', 'transaction__fuel_type').all().order_by('-created_at')
     context = {
         'page_title': 'Payments',
         'payments': payments_qs[:50],
@@ -1094,22 +1511,17 @@ def dashboard_live_stats_api(request):
     today = timezone.localdate()
     
     try:
-        summary = DashboardDailySummary.objects.filter(summary_date=today).first()
-        if summary is None:
-            summary = refresh_dashboard_summary(today)
-
-        # Get today's completed transactions
+        # Always query the Transaction table directly so the live update reflects
+        # payments immediately without depending on the DashboardDailySummary cache.
         completed_txns = Transaction.objects.filter(
             created_at__date=today,
             status='completed',
         ).filter(_exclude_lpg_filter())
-        
-        # Use persisted KPIs from the database summary row so dashboard updates
-        # immediately when a sale is committed.
-        today_revenue = summary.today_revenue if summary else (completed_txns.aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0'))
-        transaction_count = summary.transaction_count if summary else completed_txns.count()
-        total_fuel_dispensed = summary.total_fuel_dispensed if summary else (completed_txns.aggregate(Sum('liters_dispensed'))['liters_dispensed__sum'] or Decimal('0'))
-        pending_payments = summary.pending_payments if summary else Transaction.objects.filter(status='pending').filter(_exclude_lpg_filter()).count()
+
+        today_revenue = completed_txns.aggregate(Sum('total_amount'))['total_amount__sum'] or Decimal('0')
+        transaction_count = completed_txns.count()
+        total_fuel_dispensed = completed_txns.aggregate(Sum('liters_dispensed'))['liters_dispensed__sum'] or Decimal('0')
+        pending_payments = Transaction.objects.filter(status='pending').filter(_exclude_lpg_filter()).count()
         
         # Get recent transactions
         recent_transactions = completed_txns.select_related(

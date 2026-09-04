@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block body_class %}dashboard-page{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/dashboard-saas.css' %}?v=20260504a">
+<style>
+/* ── Shared sub-page design system ── */
+.page-shell{padding:28px;display:grid;gap:22px;}
+.page-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.page-header-copy{}
+.page-title{margin:0;font-size:1.55rem;font-weight:800;letter-spacing:-0.035em;color:#0f172a;}
+.page-subtitle{margin:4px 0 0;font-size:0.88rem;color:#64748b;}
+.page-header-actions{display:flex;gap:10px;flex-wrap:wrap;}
+.btn-action{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:10px;font-size:0.85rem;font-weight:700;border:none;cursor:pointer;text-decoration:none;transition:background 0.18s,transform 0.12s;}
+.btn-action:hover{transform:translateY(-1px);}
+.btn-action-primary{background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;box-shadow:0 6px 18px rgba(37,99,235,0.22);}
+.btn-action-ghost{background:rgba(15,23,42,0.06);color:#334155;}
+
+/* KPI grid */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:16px;}
+.kpi-card{background:#fff;border-radius:16px;border:1px solid rgba(15,23,42,0.07);box-shadow:0 2px 10px rgba(15,23,42,0.05);padding:22px;display:flex;flex-direction:column;gap:10px;}
+.kpi-icon{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;font-size:1.05rem;flex-shrink:0;}
+.kpi-icon-blue{background:rgba(37,99,235,0.1);color:#2563eb;}
+.kpi-icon-green{background:rgba(34,197,94,0.12);color:#16a34a;}
+.kpi-icon-orange{background:rgba(245,158,11,0.12);color:#d97706;}
+.kpi-icon-red{background:rgba(220,38,38,0.1);color:#dc2626;}
+.kpi-icon-navy{background:rgba(15,23,42,0.08);color:#0f172a;}
+.kpi-icon-teal{background:rgba(20,184,166,0.12);color:#0d9488;}
+.kpi-label{font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#64748b;margin:0;}
+.kpi-value{font-size:2rem;font-weight:800;letter-spacing:-0.045em;color:#0f172a;line-height:1;margin:0;}
+.kpi-value-sm{font-size:1.5rem;}
+.kpi-sub{font-size:0.8rem;color:#64748b;margin:0;}
+
+/* Content card */
+.content-card{background:#fff;border-radius:16px;border:1px solid rgba(15,23,42,0.07);box-shadow:0 2px 10px rgba(15,23,42,0.05);overflow:hidden;}
+.content-card-header{padding:18px 22px;border-bottom:1px solid rgba(15,23,42,0.06);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.content-card-title{font-size:0.97rem;font-weight:700;color:#0f172a;margin:0;}
+.content-card-count{font-size:0.8rem;color:#64748b;background:rgba(15,23,42,0.05);padding:3px 10px;border-radius:999px;}
+
+/* Data table */
+.data-table{width:100%;border-collapse:collapse;}
+.data-table thead th{padding:11px 16px;text-align:left;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;background:#f8fafc;border-bottom:1px solid rgba(15,23,42,0.06);white-space:nowrap;}
+.data-table tbody td{padding:13px 16px;font-size:0.875rem;color:#334155;border-bottom:1px solid rgba(15,23,42,0.04);}
+.data-table tbody tr:last-child td{border-bottom:0;}
+.data-table tbody tr:hover{background:rgba(15,23,42,0.018);}
+.data-table-wrap{overflow-x:auto;}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;font-size:0.75rem;font-weight:700;}
+.badge-green{background:rgba(34,197,94,0.12);color:#15803d;}
+.badge-red{background:rgba(220,38,38,0.1);color:#b91c1c;}
+.badge-orange{background:rgba(245,158,11,0.12);color:#b45309;}
+.badge-blue{background:rgba(37,99,235,0.1);color:#1d4ed8;}
+.badge-gray{background:rgba(15,23,42,0.06);color:#475569;}
+
+/* Empty state */
+.empty-state{text-align:center;padding:48px 24px;color:#94a3b8;}
+.empty-state i{font-size:2.5rem;display:block;margin-bottom:12px;opacity:0.45;}
+.empty-state p{margin:0;font-size:0.9rem;}
+
+@media(max-width:768px){
+  .page-shell{padding:16px;gap:16px;}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);}
+  .kpi-value{font-size:1.5rem;}
+}
+
+/* ── Mobile sidebar overlay ── */
+.sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:199;}
+.sidebar-overlay.open{display:block;}
+
+.mobile-topbar{
+  display:none;
+  align-items:center;
+  gap:12px;
+  padding:12px 16px;
+  background:#fff;
+  border-bottom:1px solid rgba(15,23,42,0.07);
+  position:sticky;
+  top:0;
+  z-index:100;
+}
+.mobile-topbar .mobile-brand{font-size:1rem;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:8px;}
+.hamburger-btn{
+  display:grid;place-items:center;
+  width:38px;height:38px;
+  border:none;background:transparent;cursor:pointer;
+  color:#334155;font-size:1.25rem;border-radius:8px;
+  margin-left:auto;
+}
+.hamburger-btn:hover{background:rgba(15,23,42,0.06);}
+
+@media(max-width:900px){
+  .mobile-topbar{display:flex;}
+  .fuelsync-dashboard{display:block !important;}
+  .dashboard-sidebar{
+    position:fixed;top:0;left:0;height:100%;width:260px;
+    transform:translateX(-100%);transition:transform 0.26s ease;
+    z-index:200;overflow-y:auto;
+  }
+  .dashboard-sidebar.open{transform:translateX(0);}
+  .dashboard-main{padding-top:0 !important;}
+}
+</style>
+{% block dashboard_extra_css %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+{% url 'dashboard' as url_dashboard %}
+{% url 'buy' as url_buy %}
+{% url 'dashboard_inventory' as url_inventory %}
+{% url 'dashboard_pumps' as url_pumps %}
+{% url 'dashboard_sales' as url_sales %}
+{% url 'dashboard_customers' as url_customers %}
+{% url 'dashboard_reports' as url_reports %}
+{% url 'dashboard_price_history' as url_price_history %}
+{% url 'dashboard_update_price' as url_update_price %}
+{% url 'dashboard_payments' as url_payments %}
+{% url 'dashboard_attendance' as url_attendance %}
+{% url 'dashboard_my_attendance' as url_my_attendance %}
+{% url 'dashboard_notifications' as url_notifications %}
+{% url 'settings' as url_settings %}
+{% url 'profile' as url_profile %}
+<!-- Mobile topbar (hidden on desktop via CSS) -->
+<div class="mobile-topbar">
+    <div class="mobile-brand"><i class="bi bi-fuel-pump-fill"></i> FuelSync</div>
+    <button class="hamburger-btn" id="sidebarToggle" aria-label="Open navigation" aria-expanded="false" aria-controls="dashboardSidebar">
+        <i class="bi bi-list"></i>
+    </button>
+</div>
+
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<div class="fuelsync-dashboard">
+    <aside class="dashboard-sidebar" id="dashboardSidebar">
+        <div class="sidebar-brand">
+            <div class="brand-mark"><i class="bi bi-fuel-pump-fill"></i></div>
+            <div>
+                <strong>FuelSync</strong>
+                <span>Smart Fuelcourt Monitoring System</span>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Dashboard navigation">
+            <a href="{{ url_dashboard }}" class="sidebar-link{% if request.path == url_dashboard %} active{% endif %}">
+                <i class="bi bi-speedometer2"></i><span>Dashboard</span>
+            </a>
+            <a href="{{ url_inventory }}" class="sidebar-link{% if request.path == url_inventory %} active{% endif %}">
+                <i class="bi bi-box-seam"></i><span>Inventory</span>
+            </a>
+            <a href="{{ url_pumps }}" class="sidebar-link{% if request.path == url_pumps %} active{% endif %}">
+                <i class="bi bi-fuel-pump"></i><span>Pumps</span>
+            </a>
+            <a href="{{ url_sales }}" class="sidebar-link{% if request.path == url_sales %} active{% endif %}">
+                <i class="bi bi-receipt"></i><span>Sales</span>
+            </a>
+            <a href="{{ url_customers }}" class="sidebar-link{% if request.path == url_customers %} active{% endif %}">
+                <i class="bi bi-people"></i><span>Customers</span>
+            </a>
+            <a href="{{ url_reports }}" class="sidebar-link{% if request.path == url_reports %} active{% endif %}">
+                <i class="bi bi-graph-up-arrow"></i><span>Reports</span>
+            </a>
+            <a href="{{ url_update_price }}" class="sidebar-link{% if request.path == url_update_price %} active{% endif %}">
+                <i class="bi bi-currency-dollar"></i><span>Update Fuel Price</span>
+            </a>
+            <a href="{{ url_price_history }}" class="sidebar-link{% if request.path == url_price_history %} active{% endif %}" style="opacity:0.8;">
+                <i class="bi bi-clock-history"></i><span>Price History</span>
+            </a>
+            <a href="{{ url_payments }}" class="sidebar-link{% if request.path == url_payments %} active{% endif %}">
+                <i class="bi bi-wallet2"></i><span>Payments</span>
+            </a>
+            {% if user.is_superuser or user.dashboard_profile.role == 'manager' %}
+            <a href="{{ url_attendance }}" class="sidebar-link{% if request.path == url_attendance %} active{% endif %}">
+                <i class="bi bi-camera-video"></i><span>Attendance Kiosk</span>
+            </a>
+            {% endif %}
+            <a href="{{ url_my_attendance }}" class="sidebar-link{% if request.path == url_my_attendance %} active{% endif %}">
+                <i class="bi bi-person-check"></i><span>Attendance History</span>
+            </a>
+            <a href="{{ url_notifications }}" class="sidebar-link{% if request.path == url_notifications %} active{% endif %}">
+                <i class="bi bi-bell"></i><span>Notifications</span>
+            </a>
+            <a href="{{ url_buy }}" class="sidebar-link{% if request.path == url_buy %} active{% endif %}">
+                <i class="bi bi-cart-plus"></i><span>Buy Fuel</span>
+            </a>
+            <a href="{{ url_settings }}" class="sidebar-link{% if request.path == url_settings %} active{% endif %}">
+                <i class="bi bi-gear"></i><span>Settings</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <a href="{{ url_profile }}" class="sidebar-logout{% if request.path == url_profile %} active{% endif %}" style="margin-bottom: 8px; display: flex;">
+                <i class="bi bi-person-circle"></i>
+                <span>{% if user.first_name %}{{ user.get_full_name }}{% else %}{{ user.username }}{% endif %}</span>
+            </a>
+            <a href="{% url 'logout' %}" class="sidebar-logout">
+                <i class="bi bi-box-arrow-left"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </aside>
+
+    <main class="dashboard-main">
+        {% block page_content %}{% endblock %}
+    </main>
+</div>
+
+<script>
+(function(){
+    var btn = document.getElementById('sidebarToggle');
+    var sidebar = document.getElementById('dashboardSidebar');
+    var overlay = document.getElementById('sidebarOverlay');
+    function openSidebar(){
+        sidebar.classList.add('open');
+        overlay.classList.add('open');
+        btn.setAttribute('aria-expanded','true');
+        document.body.style.overflow='hidden';
+    }
+    function closeSidebar(){
+        sidebar.classList.remove('open');
+        overlay.classList.remove('open');
+        btn.setAttribute('aria-expanded','false');
+        document.body.style.overflow='';
+    }
+    if(btn) btn.addEventListener('click', function(){
+        sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
+    });
+    if(overlay) overlay.addEventListener('click', closeSidebar);
+    // Close on nav link click (mobile)
+    if(sidebar) sidebar.querySelectorAll('a').forEach(function(a){
+        a.addEventListener('click', closeSidebar);
+    });
+})();
+</script>
+{% endblock %}

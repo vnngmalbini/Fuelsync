@@ -1,0 +1,60 @@
+{% extends 'dashboard_layout.html' %}
+{% load static %}
+
+{% block title %}Attendance History - FuelSync{% endblock %}
+
+{% block dashboard_extra_css %}
+<style>
+    .history-shell{display:grid;gap:22px;}
+    @media (min-width: 1200px) {
+        .history-shell { padding-right: 12px; }
+    }
+</style>
+{% endblock %}
+
+{% block page_content %}
+<div class="page-shell history-shell">
+    <div class="page-header">
+        <div class="page-header-copy">
+            <h1 class="page-title">Attendance History</h1>
+            <p class="page-subtitle">Your recent check-in and check-out records.</p>
+        </div>
+    </div>
+
+    <section class="content-card">
+        <div class="content-card-header">
+            <h2 class="content-card-title"><i class="bi bi-clock-history"></i> Your Attendance Records</h2>
+            <span class="content-card-count">{{ attendance_history_panel|length }} records</span>
+        </div>
+        <div class="data-table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Event</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in attendance_history_panel %}
+                    <tr>
+                        <td>
+                            <span class="badge {% if record.event_type == 'clock_in' %}badge-green{% else %}badge-blue{% endif %}">
+                                {{ record.event_label }}
+                            </span>
+                        </td>
+                        <td>{{ record.date }}</td>
+                        <td>{{ record.time }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3" class="empty-state">No attendance records found yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+</div>
+{% endblock %}

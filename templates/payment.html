@@ -42,7 +42,60 @@
     <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code">
 
     <div class="hint">Scan this QR code with your mobile money app to complete payment.</div>
+    <div id="payment-status" class="hint" style="margin-top:12px; display:none;"></div>
 </div>
+
+<script>
+    (function () {
+        const reference = "{{ reference|escapejs }}";
+        const verifyApiUrl = "{{ verify_api_url|escapejs }}";
+        const dashboardUrl = "{{ dashboard_url|escapejs }}";
+        const statusNode = document.getElementById('payment-status');
+        let attempts = 0;
+        const maxAttempts = 120;
+
+        function setStatus(message) {
+            if (!statusNode) return;
+            statusNode.style.display = 'block';
+            statusNode.textContent = message;
+        }
+
+        async function verifyPayment() {
+            if (!reference || attempts >= maxAttempts) {
+                return;
+            }
+
+            attempts += 1;
+            try {
+                const response = await fetch(`${verifyApiUrl}?reference=${encodeURIComponent(reference)}`, {
+                    headers: { 'Accept': 'application/json' },
+                    cache: 'no-store',
+                });
+
+                const data = await response.json();
+                if (data && data.status) {
+                    setStatus('Payment confirmed! Taking you to your receipt...');
+                    const ref = (data && data.reference) || reference;
+                    window.location.href = '/payment/success/' + (ref ? '?reference=' + encodeURIComponent(ref) : '');
+                    return;
+                }
+
+                setStatus('Waiting for payment confirmation...');
+            } catch (error) {
+                setStatus('Waiting for payment confirmation...');
+            }
+
+            if (attempts < maxAttempts) {
+                window.setTimeout(verifyPayment, 3000);
+            }
+        }
+
+        if (reference) {
+            setStatus('Waiting for payment confirmation...');
+            window.setTimeout(verifyPayment, 3000);
+        }
+    })();
+</script>
 
 </body>
 </html>

@@ -27,29 +27,29 @@ class FuelTypeViewSet(viewsets.ModelViewSet):
     def update_price(self, request, pk=None):
         """Update fuel price with history tracking"""
         fuel = self.get_object()
-        old_price = fuel.current_price
         new_price = request.data.get('new_price')
-        reason = request.data.get('reason', '')
         
         if not new_price:
             return Response({'error': 'new_price is required'}, status=status.HTTP_400_BAD_REQUEST)
-        
+
+        try:
+            new_price = float(new_price)
+            if new_price <= 0:
+                raise ValueError
+        except (TypeError, ValueError):
+            return Response({'error': 'new_price must be a positive number'}, status=status.HTTP_400_BAD_REQUEST)
+
         fuel.current_price = new_price
         fuel.save()
         
-        # Create price history record
-        from station.models import Staff
-        try:
-            staff = Staff.objects.get(user=request.user)
-            FuelPriceHistory.objects.create(
-                fuel_type=fuel,
-                old_price=old_price,
-                new_price=new_price,
-                changed_by=staff,
-                reason=reason
-            )
-        except Staff.DoesNotExist:
-            pass
+        # Snapshot all current fuel prices; current_rate = the price just changed
+        prices = {ft.name: float(ft.current_price) for ft in FuelType.objects.all()}
+        FuelPriceHistory.objects.create(
+            diesel=prices.get('diesel', 0.0),
+            petrol=prices.get('petrol', 0.0),
+            super=prices.get('super'),
+            current_rate=float(new_price),
+        )
         
         return Response(FuelTypeSerializer(fuel).data)
 

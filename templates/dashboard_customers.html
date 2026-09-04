@@ -1,11 +1,10 @@
-{% extends 'base.html' %}
+{% extends 'dashboard_layout.html' %}
 
 {% block title %}Customers - FuelSync{% endblock %}
 
-{% block content %}
+{% block page_content %}
 <div class="container" style="padding: 2rem 0;">
     <h1>Customers</h1>
-    <p>Total customers: <strong>{{ total_customers }}</strong></p>
 
     <div style="overflow-x: auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;">
         <table style="width: 100%; border-collapse: collapse;">
@@ -21,7 +20,15 @@
             <tbody>
                 {% for customer in customers %}
                 <tr style="border-top: 1px solid #e5e7eb;">
-                    <td style="padding: 0.75rem;">{{ customer.first_name }} {{ customer.last_name }}</td>
+                    <td style="padding: 0.75rem;">
+                        {% if customer.first_name and customer.first_name != 'Customer' %}
+                            {{ customer.first_name }}{% if customer.last_name %} {{ customer.last_name }}{% endif %}
+                        {% elif customer.last_name and customer.last_name != customer.phone %}
+                            {{ customer.last_name }}
+                        {% else %}
+                            <span style="color:#94a3b8;">{{ customer.phone }}</span>
+                        {% endif %}
+                    </td>
                     <td style="padding: 0.75rem;">{{ customer.phone }}</td>
                     <td style="padding: 0.75rem;">{{ customer.email|default:'-' }}</td>
                     <td style="padding: 0.75rem;">GH₵{{ customer.total_purchases|floatformat:2 }}</td>

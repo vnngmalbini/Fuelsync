@@ -2,7 +2,7 @@ import requests
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.core.mail import EmailMessage
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import render, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
@@ -11,7 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction as db_transaction
 from dashboard.permissions import role_required
 from dashboard.models import refresh_dashboard_summary, refresh_daily_sales_report
-from station.models import Transaction, FuelType, Pump, Customer, Payment
+from station.models import Transaction, FuelType, FuelInventory, Pump, Customer, Payment
 from .notifications import (
     build_payment_confirmation_message,
     build_test_sms_message,
@@ -27,9 +27,22 @@ import logging
 import hmac
 import hashlib
 import uuid
+import threading
 from decimal import Decimal
 
 logger = logging.getLogger(__name__)
+
+
+def _dispatch_receipt_async(transaction, paystack_data, request=None):
+    """Fire receipt dispatch in a daemon thread so the HTTP response is not delayed."""
+    ref = getattr(transaction, 'reference_number', '')
+    def _run():
+        try:
+            _dispatch_receipt_to_payment_contact(transaction, paystack_data, request=request)
+        except Exception as exc:
+            logger.warning('Async receipt dispatch failed for %s: %s', ref, exc)
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
 
 
 def _first_operational_pump():
@@ -50,6 +63,44 @@ def _clean_text(value):
     return str(value).strip() if value not in (None, '') else ''
 
 
+def _infer_momo_provider(phone_normalized):
+    """Infer Ghana MoMo network for Paystack from known phone prefixes."""
+    digits = ''.join(ch for ch in str(phone_normalized or '') if ch.isdigit())
+    if not digits:
+        return ''
+
+    if digits.startswith('233'):
+        local = '0' + digits[3:]
+    elif digits.startswith('0'):
+        local = digits
+    else:
+        local = digits
+
+    prefix = local[:3]
+    prefix_map = {
+        'mtn': {'024', '025', '053', '054', '055', '059'},
+        'vod': {'020', '050'},
+        # AirtelTigo numbers are typically routed via Tigo in Paystack provider naming.
+        'tgo': {'026', '027', '056', '057'},
+    }
+
+    for provider, prefixes in prefix_map.items():
+        if prefix in prefixes:
+            return provider
+
+    return ''
+
+
+def _build_mobile_money_payload(phone_normalized):
+    payload = {
+        'phone': phone_normalized,
+    }
+    provider = _infer_momo_provider(phone_normalized)
+    if provider:
+        payload['provider'] = provider
+    return payload
+
+
 def _split_customer_name(full_name, fallback_phone=''):
     candidate = _clean_text(full_name)
     if not candidate:
@@ -61,8 +112,6 @@ def _split_customer_name(full_name, fallback_phone=''):
 
     first_name = parts[0]
     last_name = ' '.join(parts[1:]).strip()
-    if not last_name:
-        last_name = _clean_text(fallback_phone) or first_name
 
     return first_name, last_name
 
@@ -349,10 +398,35 @@ def _upsert_dashboard_transaction(reference, phone, amount, paystack_data=None, 
     delta_pump = txn.pump or previous_pump
     delta_fuel_type = txn.fuel_type or previous_fuel_type
 
+    allocation_changed = (
+        not created
+        and previous_status == 'completed'
+        and txn.status == 'completed'
+        and (
+            getattr(previous_pump, 'id', None) != getattr(txn.pump, 'id', None)
+            or getattr(previous_fuel_type, 'id', None) != getattr(txn.fuel_type, 'id', None)
+        )
+    )
+
     if created:
         if txn.status == 'completed':
             liters_delta = txn.liters_dispensed or Decimal('0')
             amount_delta = txn.total_amount or Decimal('0')
+    elif allocation_changed:
+        # A webhook may arrive before browser verification and initially use
+        # fallback fuel/pump data. Reverse that allocation before applying the
+        # verified selection so inventory and pump revenue are not duplicated.
+        try:
+            _apply_transaction_stock_and_pump_delta(
+                previous_fuel_type,
+                previous_pump,
+                -(previous_liters or Decimal('0')),
+                -(previous_amount or Decimal('0')),
+            )
+        except Exception as reverse_error:
+            logger.exception('Previous payment allocation reversal failed for reference %s: %s', reference, reverse_error)
+        liters_delta = txn.liters_dispensed or Decimal('0')
+        amount_delta = txn.total_amount or Decimal('0')
     else:
         if previous_status != 'completed' and txn.status == 'completed':
             liters_delta = txn.liters_dispensed or Decimal('0')
@@ -514,39 +588,38 @@ def _dispatch_payment_confirmation_to_payment_contact(transaction, paystack_data
         metadata={'source': 'paystack_payment_confirmation'},
     )
 
-    provider_response = transaction.provider_response or {}
-    confirmation_state = provider_response.get('sms_confirmation', {})
-    confirmation_state.update({
-        'attempted_at': timezone.localtime(timezone.now()).isoformat(),
-        'phone': phone,
-        'customer_name': customer_name,
-        'message': message,
-        'queued': bool(queued),
-        'sms_delivery_log_id': getattr(log, 'id', None),
-    })
-    provider_response['sms_confirmation'] = confirmation_state
-    transaction.provider_response = provider_response
-    transaction.save(update_fields=['provider_response'])
+    # Save confirmation tracking state on Payment.provider_response (Transaction has no such field)
+    payment = getattr(transaction, 'payment', None)
+    if payment:
+        provider_response = getattr(payment, 'provider_response', None) or {}
+        confirmation_state = provider_response.get('sms_confirmation', {})
+        confirmation_state.update({
+            'attempted_at': timezone.localtime(timezone.now()).isoformat(),
+            'phone': phone,
+            'customer_name': customer_name,
+            'message': message,
+            'queued': bool(queued),
+            'sms_delivery_log_id': getattr(log, 'id', None),
+        })
+        provider_response['sms_confirmation'] = confirmation_state
+        payment.provider_response = provider_response
+        payment.save(update_fields=['provider_response'])
 
 
 def _dispatch_receipt_to_payment_contact(transaction, paystack_data, request=None):
-    """Best-effort dispatch of receipt to the payer contact used for payment.
-
-    Currently supports email dispatch when a real payer email is available.
-    """
-    provider_response = transaction.provider_response or {}
+    """Best-effort dispatch of receipt to the payer contact used for payment."""
+    # Use Payment.provider_response for tracking state (Transaction has no such field)
+    payment = getattr(transaction, 'payment', None)
+    provider_response = (getattr(payment, 'provider_response', None) or {}) if payment else {}
     receipt_dispatch = provider_response.get('receipt_dispatch', {})
 
     # Avoid duplicate sends if verify/webhook are both called.
-
     try:
         _dispatch_payment_confirmation_to_payment_contact(transaction, paystack_data=paystack_data)
     except Exception as sms_error:
-        try:
-            ref = getattr(transaction, 'reference_number', '')
-        except Exception:
-            ref = ''
+        ref = getattr(transaction, 'reference_number', '')
         logger.exception('Failed to send payment confirmation SMS for reference %s: %s', ref, sms_error)
+
     if receipt_dispatch.get('email_sent') or receipt_dispatch.get('sms_sent'):
         return
 
@@ -566,9 +639,10 @@ def _dispatch_receipt_to_payment_contact(transaction, paystack_data, request=Non
         'sms_message': sms_message,
         'channel': 'email+sms' if (email_sent and sms_sent) else 'email' if email_sent else 'sms' if sms_sent else 'none',
     })
-    provider_response['receipt_dispatch'] = receipt_dispatch
-    transaction.provider_response = provider_response
-    transaction.save(update_fields=['provider_response'])
+    if payment:
+        provider_response['receipt_dispatch'] = receipt_dispatch
+        payment.provider_response = provider_response
+        payment.save(update_fields=['provider_response'])
 
 
 @require_http_methods(["GET"])
@@ -580,7 +654,7 @@ def payment_receipt(request, reference):
 
     pdf = build_receipt_pdf(transaction)
     response = HttpResponse(pdf, content_type="application/pdf")
-    response["Content-Disposition"] = f'inline; filename="receipt-{transaction.reference}.pdf"'
+    response["Content-Disposition"] = f'inline; filename="receipt-{transaction.reference_number}.pdf"'
     return response
 
 
@@ -594,6 +668,19 @@ def _phone_from_paystack_verify_data(data):
         if found:
             return str(found)
     return ""
+
+
+def _build_paystack_callback_url(request):
+    """Build a callback URL that can be overridden for external/mobile access."""
+    site_base_url = (getattr(settings, 'SITE_BASE_URL', '') or '').strip().rstrip('/')
+    host = (request.get_host() or '').lower()
+
+    # When app is opened on localhost during development, prefer SITE_BASE_URL
+    # so external devices can reach the callback URL if configured.
+    if site_base_url and ('127.0.0.1' in host or 'localhost' in host):
+        return f"{site_base_url}/payment/verify/"
+
+    return request.build_absolute_uri('/payment/verify/')
 
 
 def _initialize_paystack_transaction(request, amount, phone, liters=None, fuel_type_name=None, customer_name=None, customer_email=None, first_name=None, last_name=None):
@@ -649,11 +736,13 @@ def _initialize_paystack_transaction(request, amount, phone, liters=None, fuel_t
         "currency": "GHS",
         "channels": ["mobile_money"],
         "phone": phone_normalized,
-        "callback_url": request.build_absolute_uri("/payment/verify/"),
+        "mobile_money": _build_mobile_money_payload(phone_normalized),
+        "callback_url": _build_paystack_callback_url(request),
         "metadata": {
             "customer_name": request_customer_name,
             "customer_email": request_customer_email,
             "customer_phone": phone_normalized,
+            "momo_provider": _infer_momo_provider(phone_normalized),
             "customer_first_name": request_first_name,
             "customer_last_name": request_last_name,
             "phone": phone_normalized,
@@ -712,6 +801,8 @@ def _initialize_paystack_transaction(request, amount, phone, liters=None, fuel_t
         "access_code": res["data"].get("access_code"),
         "authorization_url": auth_url,
         "qr_code_image": build_qr_code_data_uri(auth_url or res["data"].get("reference", "")),
+        "verify_api_url": reverse("verify_payment_api"),
+        "dashboard_url": reverse("dashboard"),
     }, res, phone_normalized, reference
 
 @login_required
@@ -755,6 +846,9 @@ def qr_payment(request):
 
     return render(request, "payment.html", {
         "amount": context["amount"],
+        "reference": reference,
+        "verify_api_url": reverse("verify_payment_api"),
+        "dashboard_url": reverse("dashboard"),
         "qr_code": context["qr_code_image"].split(",", 1)[1] if "," in context["qr_code_image"] else context["qr_code_image"],
     })
 
@@ -797,11 +891,13 @@ def initialize_payment_api(request):
             "currency": "GHS",
             "channels": ["mobile_money"],
             "phone": phone_normalized,
-            "callback_url": request.build_absolute_uri("/payment/verify/"),
+            "mobile_money": _build_mobile_money_payload(phone_normalized),
+            "callback_url": _build_paystack_callback_url(request),
             "metadata": {
                 "customer_name": customer_name,
                 "customer_email": customer_email,
                 "customer_phone": phone_normalized,
+                "momo_provider": _infer_momo_provider(phone_normalized),
                 "customer_first_name": customer_first_name or "",
                 "customer_last_name": customer_last_name or "",
                 "phone": phone_normalized,
@@ -984,16 +1080,12 @@ def verify_payment(request):
             transaction = _upsert_dashboard_transaction(reference, phone, amount, data, liters=liters, fuel_type_name=fuel_type_name)
             logger.info(f"Saved local transaction for reference {reference} (id={getattr(transaction, 'id', None)})")
 
-            # Generate and return receipt PDF
-            try:
-                pdf = build_receipt_pdf(transaction)
-                http_response = HttpResponse(pdf, content_type="application/pdf")
-                http_response["Content-Disposition"] = f'inline; filename="receipt-{reference}.pdf"'
-                return http_response
-            except Exception:
-                return render(request, "failed.html", {
-                    "error": "Payment successful but receipt generation failed."
-                })
+            _dispatch_receipt_async(transaction, data, request=request)
+
+            from urllib.parse import urlencode
+            from django.urls import reverse as _reverse
+            success_url = _reverse('payment_success') + '?' + urlencode({'reference': reference})
+            return HttpResponseRedirect(success_url)
         else:
             status_info = data.get("status", "unknown")
             return render(request, "failed.html", {
@@ -1071,10 +1163,7 @@ def verify_payment_api(request):
             )
             transaction = _upsert_dashboard_transaction(reference, phone, amount, data, liters=liters, fuel_type_name=fuel_type_name)
 
-            try:
-                _dispatch_receipt_to_payment_contact(transaction, data, request=request)
-            except Exception as dispatch_error:
-                logger.warning("Receipt dispatch failed for %s: %s", reference, dispatch_error)
+            _dispatch_receipt_async(transaction, data, request=request)
 
             return JsonResponse({
                 "status": True,
@@ -1101,6 +1190,71 @@ def verify_payment_api(request):
             "status": False,
             "message": "Unexpected server error while verifying payment."
         }, status=500)
+
+
+def payment_success(request):
+    """Show a branded success page after a confirmed Paystack payment, then redirect to dashboard."""
+    reference = request.GET.get('reference', '').strip()
+
+    if not reference:
+        return HttpResponseRedirect(reverse('dashboard'))
+
+    transaction = Transaction.objects.filter(reference_number=reference, status='completed').first()
+
+    if not transaction:
+        # Reference not found or not completed — try a quick live verify before giving up.
+        try:
+            headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
+            resp = requests.get(
+                f"https://api.paystack.co/transaction/verify/{reference}",
+                headers=headers,
+                timeout=8,
+            )
+            res = resp.json()
+            data = res.get('data') if isinstance(res, dict) else {}
+            if isinstance(data, dict) and res.get('status') and data.get('status') == 'success':
+                amount_raw = data.get('amount')
+                if amount_raw is not None:
+                    amount = float(amount_raw) / 100
+                    metadata = data.get('metadata') or {}
+                    phone = _phone_from_paystack_verify_data(data) or ''
+                    liters_raw = metadata.get('liters')
+                    try:
+                        liters = float(liters_raw) if liters_raw not in (None, '', 'undefined') else None
+                    except (TypeError, ValueError):
+                        liters = None
+                    fuel_type_name = metadata.get('fuel_type') or ''
+                    transaction = _upsert_dashboard_transaction(
+                        reference, phone, amount, data,
+                        liters=liters,
+                        fuel_type_name=fuel_type_name if fuel_type_name not in ('undefined', 'null', '') else None,
+                    )
+        except Exception:
+            pass
+
+    if not transaction:
+        return HttpResponseRedirect(reverse('dashboard'))
+
+    if transaction.customer:
+        fn = transaction.customer.first_name or ''
+        ln = transaction.customer.last_name or ''
+        customer_name = (f"{fn} {ln}".strip()) if (fn and fn != 'Customer') or ln else ''
+        phone = transaction.customer.phone or ''
+    else:
+        customer_name = ''
+        phone = ''
+
+    context = {
+        'reference': reference,
+        'amount': transaction.total_amount,
+        'fuel_type': transaction.fuel_type.name if transaction.fuel_type else '',
+        'liters': transaction.liters_dispensed,
+        'phone': phone,
+        'customer_name': customer_name,
+        'redirect_seconds': 6,
+        'dashboard_url': reverse('dashboard'),
+    }
+    return render(request, 'payment_success.html', context)
 
 
 def debug_init(request):
@@ -1228,6 +1382,16 @@ def paystack_webhook(request):
                 except Exception as e:
                     logger.error(f"[WEBHOOK-{webhook_id}] Failed to parse amount {amt}: {e}")
                     amount = None
+
+            fuel_type_name = metadata.get('fuel_type') or metadata.get('fuel_type_name')
+            liters = metadata.get('liters')
+            try:
+                liters = float(liters) if liters not in (None, '') else None
+            except (TypeError, ValueError):
+                liters = None
+            if liters is None:
+                inferred_liters = _infer_liters_from_amount(amount, fuel_type_name=fuel_type_name)
+                liters = float(inferred_liters) if inferred_liters is not None else None
             
             logger.info(f"[WEBHOOK-{webhook_id}] Extracted phone: {phone}")
             logger.info(f"[WEBHOOK-{webhook_id}] Extracted customer name: {extracted_customer.get('customer_name')}")
@@ -1248,6 +1412,8 @@ def paystack_webhook(request):
                     phone,
                     amount,
                     data,
+                    liters=liters,
+                    fuel_type_name=fuel_type_name,
                     customer_name=extracted_customer.get('customer_name'),
                     customer_email=extracted_customer.get('customer_email'),
                 )

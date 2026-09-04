@@ -1,8 +1,8 @@
-{% extends 'base.html' %}
+{% extends 'dashboard_layout.html' %}
 
 {% block title %}Settings - FuelSync{% endblock %}
 
-{% block content %}
+{% block page_content %}
 <div class="dashboard-container settings-page">
     <div class="page-header settings-hero">
         <div class="header-content">
@@ -68,6 +68,43 @@
                     </div>
                 </div>
             </div>
+
+            {% if staff %}
+            <div class="card mb-lg settings-card">
+                <div class="card-header">
+                    <h3><i class="bi bi-person-badge"></i> Face Registration for Attendance</h3>
+                </div>
+                <div class="card-body">
+                    <p class="muted-row" style="margin-top:0;">Register a clear, front-facing photo once — it's used to automatically recognize you and mark your attendance each morning.</p>
+
+                    <div class="identity-highlight">
+                        <div class="avatar-preview-wrap large">
+                            {% if staff.profile_picture %}
+                                <img src="{{ staff.profile_picture.url }}" alt="Registered face" class="avatar-preview" id="faceRegPreview">
+                            {% else %}
+                                <div class="avatar-preview avatar-preview-placeholder" id="faceRegPreview">
+                                    <i class="bi bi-person-bounding-box"></i>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <p class="face-reg-status {% if staff.profile_picture %}registered{% endif %}" id="faceRegStatus" style="margin:0;font-weight:700;font-size:0.95rem;{% if staff.profile_picture %}color:#16a34a;{% else %}color:#b45309;{% endif %}">
+                                {% if staff.profile_picture %}<i class="bi bi-check-circle-fill"></i> Face Registered{% else %}<i class="bi bi-exclamation-circle"></i> Not registered yet{% endif %}
+                            </p>
+                            <p class="muted-row" style="margin:4px 0 0;">Used only for the attendance kiosk on your dashboard.</p>
+                        </div>
+                    </div>
+
+                    <div class="settings-actions" style="margin-top:16px;">
+                        <label class="btn btn-primary" for="faceRegInput" style="cursor:pointer;">
+                            <i class="bi bi-upload"></i> {% if staff.profile_picture %}Replace Face Photo{% else %}Upload Face Photo{% endif %}
+                        </label>
+                        <input type="file" accept="image/*" id="faceRegInput" style="display:none;">
+                    </div>
+                    <div id="faceRegMessage" style="margin-top:10px;font-size:0.85rem;"></div>
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <div class="col-lg-4">
@@ -85,13 +122,6 @@
                                     <span class="help-text">Receive email updates for important account activity.</span>
                                 </span>
                                 {{ preferences_form.email_notifications }}
-                            </label>
-                            <label class="settings-row switch-row" for="id_sms_notifications">
-                                <span>
-                                    <span class="label">SMS Alerts</span>
-                                    <span class="help-text">Get text notifications for time-sensitive updates.</span>
-                                </span>
-                                {{ preferences_form.sms_notifications }}
                             </label>
                             <label class="settings-row switch-row" for="id_dark_mode">
                                 <span>
@@ -182,90 +212,6 @@
                         {% endif %}
                         <button type="submit" name="send_test_sms" value="1" class="btn btn-primary btn-sm upload-btn">Send Test SMS</button>
                     </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row mt-4">
-        <div class="col-lg-12">
-            <div class="card settings-card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h3><i class="bi bi-list-check"></i> SMS Delivery Logs</h3>
-                    <span class="help-text">Latest queued, sent, failed, and retrying messages</span>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm align-middle mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Reference</th>
-                                    <th>Customer</th>
-                                    <th>Phone</th>
-                                    <th>Provider</th>
-                                    <th>Status</th>
-                                    <th>Attempts</th>
-                                    <th>Queued</th>
-                                    <th>Sent</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for log in sms_logs %}
-                                <tr>
-                                    <td><strong>{{ log.reference }}</strong></td>
-                                    <td>{{ log.customer_name|default:'N/A' }}</td>
-                                    <td>{{ log.recipient_phone }}</td>
-                                    <td>{{ log.provider|title }}</td>
-                                    <td><span class="status-badge {% if log.status == 'sent' %}on{% elif log.status == 'failed' %}off{% else %}pending{% endif %}">{{ log.status|title }}</span></td>
-                                    <td>{{ log.attempt_count }}/{{ log.max_attempts }}</td>
-                                    <td>{{ log.queued_at|date:'d M Y, H:i' }}</td>
-                                    <td>{{ log.sent_at|default:'-'|date:'d M Y, H:i' }}</td>
-                                </tr>
-                                {% empty %}
-                                <tr><td colspan="8" class="text-muted">No SMS delivery logs yet.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row mt-4">
-        <div class="col-lg-12">
-            <div class="card settings-card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h3><i class="bi bi-shield-check"></i> SMS / Payment Audit Trail</h3>
-                    <span class="help-text">Payment confirmations, webhook verification, retries, and admin actions</span>
-                </div>
-                <div class="card-body">
-                    <div class="table-responsive">
-                        <table class="table table-sm align-middle mb-0">
-                            <thead>
-                                <tr>
-                                    <th>Event</th>
-                                    <th>Reference</th>
-                                    <th>User</th>
-                                    <th>Message</th>
-                                    <th>Timestamp</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for audit in sms_audit_logs %}
-                                <tr>
-                                    <td>{{ audit.event_type|title }}</td>
-                                    <td>{{ audit.reference|default:'-' }}</td>
-                                    <td>{{ audit.user.username|default:'System' }}</td>
-                                    <td>{{ audit.message }}</td>
-                                    <td>{{ audit.created_at|date:'d M Y, H:i' }}</td>
-                                </tr>
-                                {% empty %}
-                                <tr><td colspan="5" class="text-muted">No audit records yet.</td></tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
                 </div>
             </div>
         </div>
@@ -439,4 +385,66 @@
     }
 }
 </style>
+{% endblock %}
+
+{% block extra_js %}
+{% if staff %}
+<script>
+(function(){
+    var input = document.getElementById('faceRegInput');
+    if (!input) return;
+
+    var preview = document.getElementById('faceRegPreview');
+    var statusEl = document.getElementById('faceRegStatus');
+    var messageEl = document.getElementById('faceRegMessage');
+    var label = input.previousElementSibling;
+    var csrftoken = '{{ csrf_token }}';
+
+    input.addEventListener('change', function(){
+        var file = input.files && input.files[0];
+        if (!file) return;
+
+        messageEl.style.color = '#64748b';
+        messageEl.textContent = 'Uploading…';
+        label.style.pointerEvents = 'none';
+
+        var formData = new FormData();
+        formData.append('photo', file);
+
+        fetch('{% url "dashboard_attendance_self_photo" %}', {
+            method: 'POST',
+            headers: {'X-CSRFToken': csrftoken},
+            credentials: 'same-origin',
+            body: formData,
+        }).then(function(r){ return r.json(); }).then(function(result){
+            label.style.pointerEvents = '';
+            if (result.status === 'success') {
+                messageEl.style.color = '#16a34a';
+                messageEl.textContent = 'Face photo saved.';
+                statusEl.innerHTML = '<i class="bi bi-check-circle-fill"></i> Face Registered';
+                statusEl.style.color = '#16a34a';
+                label.innerHTML = '<i class="bi bi-upload"></i> Replace Face Photo';
+
+                if (preview.tagName === 'IMG') {
+                    preview.src = result.photo_url + '?t=' + Date.now();
+                } else {
+                    var img = document.createElement('img');
+                    img.className = 'avatar-preview';
+                    img.id = preview.id;
+                    img.src = result.photo_url;
+                    preview.replaceWith(img);
+                }
+            } else {
+                messageEl.style.color = '#dc2626';
+                messageEl.textContent = result.message || 'Upload failed.';
+            }
+        }).catch(function(){
+            label.style.pointerEvents = '';
+            messageEl.style.color = '#dc2626';
+            messageEl.textContent = 'Upload failed. Try again.';
+        });
+    });
+})();
+</script>
+{% endif %}
 {% endblock %}

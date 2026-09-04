@@ -1,25 +1,33 @@
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.core.files.base import ContentFile
 from django.http import HttpResponse, StreamingHttpResponse, JsonResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils import timezone
 from django.db import transaction as db_transaction
-from django.db.models import Sum
+from django.db.models import Case, IntegerField, Sum, When
+from django.views.decorators.http import require_POST
 from decimal import Decimal
 from datetime import timedelta
+import base64
 import uuid
 import json
 import logging
+
+import cv2
+import numpy as np
+from station.face_recognition_service import recognize_frame
 
 logger = logging.getLogger(__name__)
 
 from station.models import Transaction
 from payment.services import build_receipt_pdf
-from dashboard.permissions import role_required
+from dashboard.permissions import role_required, get_user_role
 from .models import (
     FuelType, FuelInventory, Pump, Transaction as StationTransaction,
-    Receipt, Customer, Staff
+    Receipt, Customer, Staff, Attendance, StaffRole
 )
+from dashboard.models import UserProfile
 from .forms import TransactionForm
 
 
@@ -35,7 +43,27 @@ def _site_page_context(title, tag, heading, summary):
 @login_required
 @role_required('admin', 'attendant')
 def buy_fuel(request):
-    return render(request, "buy_fuel.html")
+    fuel_types = FuelType.objects.exclude(name__iexact='lpg').order_by(
+        Case(
+            When(name='petrol', then=0),
+            When(name='diesel', then=1),
+            When(name='super', then=2),
+            default=3,
+            output_field=IntegerField(),
+        )
+    )
+    fuel_type_data = [
+        {
+            'value': f'{fuel.current_price:.2f}',
+            'label': f'{fuel.get_name_display()} - GHS {fuel.current_price:.2f}/L',
+            'fuelType': fuel.name,
+        }
+        for fuel in fuel_types
+    ]
+    return render(request, "buy_fuel.html", {
+        "fuel_types": fuel_types,
+        "fuel_type_data": fuel_type_data,
+    })
 
 
 # ==================== FUEL SALE WORKFLOW ====================
@@ -394,6 +422,34 @@ def receipt(request):
     })
 
 
+def _get_or_create_own_staff(user):
+    staff = Staff.objects.filter(user=user, is_active=True).first()
+    if staff:
+        return staff
+
+    role_name = get_user_role(user) or 'attendant'
+    if user.is_superuser:
+        role_name = 'admin'
+    if role_name not in {'admin', 'manager', 'attendant'}:
+        return None
+
+    staff_role, _ = StaffRole.objects.get_or_create(
+        name=role_name,
+        defaults={'permissions': 'dashboard,inventory,pumps,sales,payments'},
+    )
+    staff, _ = Staff.objects.update_or_create(
+        user=user,
+        defaults={
+            'role': staff_role,
+            'phone': getattr(UserProfile.objects.filter(user=user).first(), 'phone', '') or '',
+            'date_hired': timezone.localdate(),
+            'salary': 0,
+            'is_active': True,
+        },
+    )
+    return staff
+
+
 def home(request):
     welcome_first_name = ""
 
@@ -410,8 +466,91 @@ def home(request):
 
         welcome_first_name = user_first or profile_first or username_first or "there"
 
+    try:
+        completed = Transaction.objects.filter(status='completed')
+        total_transactions = completed.count()
+        total_revenue = completed.aggregate(s=Sum('total_amount'))['s'] or Decimal('0')
+        total_customers = Customer.objects.count()
+    except Exception:
+        total_transactions = 0
+        total_revenue = Decimal('0')
+        total_customers = 0
+
+    attendance_rows = Attendance.objects.select_related('staff__user').order_by('-created_at')[:50]
+    staff_list = Staff.objects.filter(is_active=True).select_related('user', 'role')
+    enrolled_count = sum(1 for s in staff_list if s.profile_picture)
+
+    attendance_widget = {
+        'show': True,
+        'can_mark': True,
+        'staff_without_photo_count': len(staff_list) - enrolled_count,
+    }
+
     return render(request, "home.html", {
         "welcome_first_name": welcome_first_name,
+        "stat_transactions": total_transactions,
+        "stat_revenue": total_revenue,
+        "stat_customers": total_customers,
+        "attendance_widget": attendance_widget,
+        "attendance_rows": attendance_rows,
+    })
+
+
+@require_POST
+def attendance_public_capture(request):
+    """Public kiosk endpoint: recognize any enrolled staff member and log clock-in/out."""
+    try:
+        payload = json.loads(request.body)
+        header, b64data = payload['image'].split(',', 1)
+        img_bytes = base64.b64decode(b64data)
+        frame = cv2.imdecode(np.frombuffer(img_bytes, np.uint8), cv2.IMREAD_COLOR)
+        if frame is None:
+            raise ValueError('could not decode image')
+    except (KeyError, ValueError, json.JSONDecodeError):
+        return JsonResponse({'status': 'error', 'message': 'Invalid image payload'}, status=400)
+
+    result = recognize_frame(frame)
+    if not result['matched']:
+        return JsonResponse({'status': 'no_match', 'reason': result['reason']})
+
+    staff = Staff.objects.select_related('user', 'role').get(id=result['staff_id'])
+    last_event = Attendance.objects.filter(staff=staff).order_by('-created_at').first()
+    event_type = 'clock_in' if (last_event is None or last_event.event_type == 'clock_out') else 'clock_out'
+
+    yesterday = timezone.now() - timedelta(hours=24)
+    if event_type == 'clock_in':
+        if Attendance.objects.filter(staff=staff, event_type='clock_in', created_at__gte=yesterday).exists():
+            return JsonResponse({
+                'status': 'error',
+                'message': 'You can only log in once.'
+            })
+    else:
+        if Attendance.objects.filter(staff=staff, event_type='clock_out', created_at__gte=yesterday).exists():
+            return JsonResponse({
+                'status': 'error',
+                'message': 'You have already clocked out within the last 24 hours.'
+            })
+
+    attendance = Attendance.objects.create(
+        staff=staff,
+        event_type=event_type,
+        confidence=result['confidence'],
+        captured_image=ContentFile(img_bytes, name=f'{staff.id}_{timezone.now():%Y%m%d%H%M%S}.jpg'),
+    )
+
+    local_dt = timezone.localtime(attendance.created_at)
+    return JsonResponse({
+        'status': 'success',
+        'staff_name': staff.user.get_full_name() or staff.user.username,
+        'event_type': attendance.event_type,
+        'confidence': result['confidence'],
+        'timestamp': attendance.created_at.isoformat(),
+        'date': local_dt.strftime('%b %d, %Y'),
+        'time': local_dt.strftime('%I:%M %p'),
+        'staff_phone': staff.phone,
+        'staff_email': staff.user.email,
+        'staff_photo_url': staff.profile_picture.url if staff.profile_picture else None,
+        'staff_role': staff.role.get_name_display(),
     })
 
 

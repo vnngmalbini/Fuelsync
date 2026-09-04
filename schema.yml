@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Smart Fuel Station Management API
+  title: Smart Fuelcourt Monitoring System API
   version: 1.0.0
   description: API for fuel station inventory, pumps, sales, and payments
 paths:

@@ -533,10 +533,11 @@
                         <td>{{ fuel.quantity_liters|floatformat:2 }} L</td>
                         <td>{{ fuel.max_capacity|floatformat:0 }} L</td>
                         <td>
+                            {% widthratio fuel.quantity_liters fuel.max_capacity 100 as fill_percent %}
                             <div class="progress-bar-container">
-                                <div class="progress-bar-fill" style="width: {% widthratio fuel.quantity_liters fuel.max_capacity 100 %}%"></div>
+                                <div class="progress-bar-fill" style="width: {{ fill_percent }}%"></div>
                             </div>
-                            {% widthratio fuel.quantity_liters fuel.max_capacity 100 %}%
+                            {{ fill_percent }}%
                         </td>
                         <td>GH₵{{ fuel.fuel_type.current_price|floatformat:2 }}</td>
                         <td>

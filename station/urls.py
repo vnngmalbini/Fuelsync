@@ -8,6 +8,7 @@ urlpatterns = [
     path("about/", views.about, name="about"),
     path("how-it-works/", views.how_it_works, name="how_it_works"),
     path("contact/", views.contact, name="contact"),
+    path("attendance/capture/", views.attendance_public_capture, name="attendance_public_capture"),
     
     # Fuel sale workflow
     path("buy/", views.buy_fuel, name="buy"),

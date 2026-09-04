@@ -20,7 +20,7 @@ def process_sms_delivery(self, sms_delivery_log_id):
     """Deliver one SMS log entry and retry it if the provider fails temporarily."""
     try:
         with db_transaction.atomic():
-            log = SMSDeliveryLog.objects.select_for_update().select_related('transaction', 'transaction__payment', 'transaction__customer').get(pk=sms_delivery_log_id)
+            log = SMSDeliveryLog.objects.select_for_update(of=('self',)).select_related('transaction', 'transaction__payment', 'transaction__customer').get(pk=sms_delivery_log_id)
 
             if log.status == 'sent':
                 return {'status': 'sent', 'log_id': log.id}

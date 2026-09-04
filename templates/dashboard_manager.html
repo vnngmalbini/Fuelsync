@@ -210,9 +210,9 @@
                         <td>{{ fuel.max_capacity|floatformat:0 }} L</td>
                         <td>
                             <div class="fuel-bar">
-                                <div class="fuel-bar-fill" style="width: {% widthratio fuel.quantity_liters fuel.max_capacity 100 %}%"></div>
+                                <div class="fuel-bar-fill" style="width: {% if fuel.max_capacity %}{% widthratio fuel.quantity_liters fuel.max_capacity 100 %}%{% else %}0%{% endif %};"></div>
                             </div>
-                            {% widthratio fuel.quantity_liters fuel.max_capacity 100 %}%
+                            {% if fuel.max_capacity %}{% widthratio fuel.quantity_liters fuel.max_capacity 100 %}%{% else %}0%{% endif %}
                         </td>
                         <td>GH₵{{ fuel.fuel_type.current_price|floatformat:2 }}/L</td>
                         <td>
