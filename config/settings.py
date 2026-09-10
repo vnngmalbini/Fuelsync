@@ -32,7 +32,10 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=lambda v: [h.strip() for h in v.split(',')])
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,10.136.118.145', cast=lambda v: [h.strip() for h in v.split(',')])
+if '10.136.118.145' not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append('10.136.118.145')
+ESP32_CAMERA_STREAM_URL = config('ESP32_CAMERA_STREAM_URL', default='http://10.136.118.229/stream')
 
 
 # Application definition
@@ -120,6 +123,10 @@ else:
 SUPABASE_URL = config('SUPABASE_URL', default='')
 SUPABASE_ANON_KEY = config('SUPABASE_ANON_KEY', default='')
 SUPABASE_SERVICE_ROLE_KEY = config('SUPABASE_SERVICE_ROLE_KEY', default='')
+SUPABASE_CAMERA_BUCKET = config('SUPABASE_CAMERA_BUCKET', default='camera-frames')
+SUPABASE_CAMERA_TABLE = config('SUPABASE_CAMERA_TABLE', default='camera_frames')
+SUPABASE_CAMERA_ACCESS_TABLE = config('SUPABASE_CAMERA_ACCESS_TABLE', default='camera_access_logs')
+CAMERA_DEVICE_KEY = config('CAMERA_DEVICE_KEY', default='')
 
 
 # Password validation

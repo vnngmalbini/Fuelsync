@@ -3,6 +3,8 @@ from collections import defaultdict
 import base64
 import json
 import logging
+import hmac
+import requests
 
 import numpy as np
 import cv2
@@ -10,12 +12,14 @@ from django.contrib import messages
 from django.contrib.auth import logout, authenticate, login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
+from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db.models import Sum, Count, Q
 from django.shortcuts import redirect, render, get_object_or_404
 from django.urls import reverse
 from django.utils import timezone
-from django.http import JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
+from django.views.decorators.csrf import csrf_exempt
 from decimal import Decimal
 
 logger = logging.getLogger(__name__)
@@ -37,7 +41,8 @@ from station.models import (
     FuelType, Staff, StaffRole, Receipt, Customer, DailySalesReport, Payment, FuelPriceHistory,
     Attendance
 )
-from station.face_recognition_service import recognize_frame
+from station.face_recognition_service import detect_largest_face, recognize_frame
+from station.camera_stream import CameraStreamError, latest_frame, record_viewer_access, save_frame
 from payment.notifications import build_test_sms_message, get_sms_provider_status, queue_sms_delivery, record_payment_audit
 from payment.services import normalize_phone_number
 
@@ -992,6 +997,38 @@ def attendance_dashboard_page(request):
 
 @login_required
 @role_required('manager')
+def esp32_camera_stream(request):
+    """Proxy the ESP32 MJPEG stream so the dashboard can load it same-origin."""
+    try:
+        camera_response = requests.get(
+            settings.ESP32_CAMERA_STREAM_URL,
+            stream=True,
+            timeout=(5, None),
+        )
+        camera_response.raise_for_status()
+    except requests.RequestException:
+        return JsonResponse({'error': 'ESP32 camera stream unavailable.'}, status=502)
+
+    def stream_chunks():
+        try:
+            for chunk in camera_response.iter_content(chunk_size=4096):
+                if chunk:
+                    yield chunk
+        finally:
+            camera_response.close()
+
+    response = StreamingHttpResponse(
+        stream_chunks(),
+        content_type=camera_response.headers.get(
+            'Content-Type', 'multipart/x-mixed-replace; boundary=frame'
+        ),
+    )
+    response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
+
+
+@login_required
+@role_required('manager')
 def attendance_capture_api(request):
     """POST {'image': 'data:image/jpeg;base64,...'} -> recognize the face against enrolled
     staff, log an Attendance clock-in/out event, and return the result as JSON."""
@@ -1049,6 +1086,65 @@ def attendance_capture_api(request):
     })
 
 
+@csrf_exempt
+def camera_frame_ingest_api(request):
+    """Receive a raw JPEG from the ESP32 and persist it in Supabase Storage."""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'POST required'}, status=405)
+    provided_key = request.headers.get('X-Camera-Key', '')
+    if not settings.CAMERA_DEVICE_KEY or not hmac.compare_digest(
+        provided_key, settings.CAMERA_DEVICE_KEY
+    ):
+        return JsonResponse({'error': 'Invalid camera credentials'}, status=401)
+    if not request.body or len(request.body) > 2 * 1024 * 1024:
+        return JsonResponse({'error': 'JPEG body is missing or larger than 2 MB'}, status=400)
+    if not request.content_type.startswith('image/jpeg'):
+        return JsonResponse({'error': 'Content-Type must be image/jpeg'}, status=415)
+
+    camera_id = request.headers.get('X-Camera-ID', 'esp32-camera')[:80]
+    try:
+        frame = save_frame(request.body, camera_id, request.user)
+    except CameraStreamError as exc:
+        return JsonResponse({'error': str(exc)}, status=503)
+    except Exception:
+        logger.exception('ESP32 camera frame upload failed')
+        return JsonResponse({'error': 'Could not store camera frame'}, status=502)
+    return JsonResponse({'status': 'stored', 'camera_id': camera_id, 'frame_id': frame.get('id')})
+
+
+@login_required
+@role_required('manager')
+def camera_latest_frame_api(request):
+    """Return a signed URL for the newest Supabase frame for the dashboard."""
+    camera_id = request.GET.get('camera_id', 'esp32-camera')[:80]
+    try:
+        frame = latest_frame(camera_id)
+    except CameraStreamError as exc:
+        return JsonResponse({'error': str(exc)}, status=503)
+    except Exception:
+        logger.exception('Latest ESP32 camera frame lookup failed')
+        return JsonResponse({'error': 'Could not read camera frame'}, status=502)
+    if not frame:
+        return JsonResponse({'status': 'waiting', 'camera_id': camera_id})
+    try:
+        record_viewer_access(camera_id, request.user)
+    except Exception:
+        logger.exception('Camera viewer access audit failed')
+    return JsonResponse({
+        'status': 'ready',
+        'camera_id': camera_id,
+        'captured_at': frame.get('captured_at'),
+        'image_url': frame.get('signed_url'),
+    })
+
+
+def _uploaded_face_is_valid(photo):
+    image_bytes = photo.read()
+    photo.seek(0)
+    image = cv2.imdecode(np.frombuffer(image_bytes, np.uint8), cv2.IMREAD_GRAYSCALE)
+    return image is not None and detect_largest_face(image) is not None
+
+
 @login_required
 @role_required('manager')
 def attendance_staff_photo_upload(request, staff_id):
@@ -1060,6 +1156,11 @@ def attendance_staff_photo_upload(request, staff_id):
     photo = request.FILES.get('photo')
     if not photo:
         return JsonResponse({'status': 'error', 'message': 'No photo provided.'}, status=400)
+    if not _uploaded_face_is_valid(photo):
+        return JsonResponse({
+            'status': 'error',
+            'message': 'No clear face was detected. Upload a well-lit, front-facing face photo.',
+        }, status=400)
 
     staff.profile_picture = photo
     staff.save(update_fields=['profile_picture', 'updated_at'])
@@ -1084,6 +1185,11 @@ def attendance_self_photo_upload(request):
     photo = request.FILES.get('photo')
     if not photo:
         return JsonResponse({'status': 'error', 'message': 'No photo provided.'}, status=400)
+    if not _uploaded_face_is_valid(photo):
+        return JsonResponse({
+            'status': 'error',
+            'message': 'No clear face was detected. Upload a well-lit, front-facing face photo.',
+        }, status=400)
 
     staff.profile_picture = photo
     staff.save(update_fields=['profile_picture', 'updated_at'])

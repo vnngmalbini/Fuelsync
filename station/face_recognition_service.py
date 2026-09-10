@@ -6,14 +6,17 @@ cached in-process and lazily rebuilt whenever the set of enrolled staff photos c
 """
 import cv2
 import numpy as np
-from django.db.models import Max, Count
+from pathlib import Path
 
 from .models import Staff
 
-CONFIDENCE_THRESHOLD = 70.0  # LBPH distance; lower = more confident match. Tune once real photos exist.
+CONFIDENCE_THRESHOLD = 60.0  # LBPH distance; lower = more confident match.
+MIN_MATCH_MARGIN = 10.0  # The best identity must beat the runner-up by this much.
 FACE_SIZE = (200, 200)
+MIN_FACE_SIZE = (70, 70)
 
-_HAAR_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+_HAAR_PATH = Path(cv2.data.haarcascades) / 'haarcascade_frontalface_default.xml'
+_HAAR_CASCADE = cv2.CascadeClassifier(str(_HAAR_PATH)) if _HAAR_PATH.is_file() else None
 
 _recognizer_cache = {"recognizer": None, "label_to_staff_id": {}, "signature": None}
 
@@ -23,16 +26,59 @@ def _enrolled_staff_qs():
 
 
 def _staleness_signature():
-    agg = _enrolled_staff_qs().aggregate(latest=Max('updated_at'), n=Count('id'))
-    return (agg['n'], agg['latest'].isoformat() if agg['latest'] else None)
+    enrolled = _enrolled_staff_qs().values_list('id', 'updated_at')
+    return tuple((staff_id, updated_at.isoformat() if updated_at else None) for staff_id, updated_at in enrolled)
 
 
 def detect_largest_face(gray_frame):
     """Returns (x, y, w, h) of the largest detected face in a grayscale frame, or None."""
-    faces = _HAAR_CASCADE.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5, minSize=(80, 80))
+    if _HAAR_CASCADE is None or _HAAR_CASCADE.empty():
+        return None
+    faces = _HAAR_CASCADE.detectMultiScale(
+        gray_frame,
+        scaleFactor=1.1,
+        minNeighbors=5,
+        minSize=MIN_FACE_SIZE,
+    )
+    if len(faces) == 0:
+        # Attendance frames can be wider or darker than enrollment photos. A
+        # second pass accepts smaller faces without making the normal pass slower.
+        faces = _HAAR_CASCADE.detectMultiScale(
+            cv2.equalizeHist(gray_frame),
+            scaleFactor=1.12,
+            minNeighbors=4,
+            minSize=(50, 50),
+        )
     if len(faces) == 0:
         return None
     return max(faces, key=lambda f: f[2] * f[3])
+
+
+def _normalize_face(face):
+    """Normalizes an inner face crop so hair, clothes, and lighting have less influence."""
+    face = cv2.resize(face, FACE_SIZE, interpolation=cv2.INTER_AREA)
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    return clahe.apply(face)
+
+
+def _inner_face_crop(gray_frame, box):
+    """Crop away the outer detector region, which can include hair and background."""
+    x, y, width, height = box
+    left = x + int(width * 0.12)
+    top = y + int(height * 0.10)
+    right = x + int(width * 0.88)
+    bottom = y + int(height * 0.94)
+    return gray_frame[top:bottom, left:right]
+
+
+def _appearance_variants(face):
+    """Return views that reduce sensitivity to glasses, lighting, and expression."""
+    normalized = _normalize_face(face)
+    return [
+        normalized,
+        cv2.flip(normalized, 1),
+        cv2.GaussianBlur(normalized, (3, 3), 0),
+    ]
 
 
 def _load_training_faces():
@@ -44,9 +90,9 @@ def _load_training_faces():
         box = detect_largest_face(img)
         if box is None:
             continue
-        x, y, w, h = box
-        faces.append(cv2.resize(img[y:y + h, x:x + w], FACE_SIZE))
-        labels.append(idx)
+        variants = _appearance_variants(_inner_face_crop(img, box))
+        faces.extend(variants)
+        labels.extend([idx] * len(variants))
         label_map[idx] = staff.id
     return faces, labels, label_map
 
@@ -79,10 +125,31 @@ def recognize_frame(bgr_frame):
     if recognizer is None:
         return {'matched': False, 'staff_id': None, 'confidence': None, 'reason': 'no_enrolled_staff'}
 
-    x, y, w, h = box
-    face = cv2.resize(gray[y:y + h, x:x + w], FACE_SIZE)
-    label, confidence = recognizer.predict(face)
-    if confidence > CONFIDENCE_THRESHOLD:
+    face = _inner_face_crop(gray, box)
+    predictions = [recognizer.predict(variant) for variant in _appearance_variants(face)]
+    valid_predictions = [item for item in predictions if item[0] in label_map]
+    if not valid_predictions:
+        return {'matched': False, 'staff_id': None, 'confidence': None, 'reason': 'low_confidence'}
+
+    scores = {}
+    for label, distance in valid_predictions:
+        scores.setdefault(label, []).append(distance)
+    ranked_scores = sorted(
+        [
+            (
+                label,
+                sum(sorted(distances)[:2]) / min(2, len(distances)),
+            )
+            for label, distances in scores.items()
+        ],
+        key=lambda item: item[1],
+    )
+    label, confidence = ranked_scores[0]
+    runner_up_confidence = ranked_scores[1][1] if len(ranked_scores) > 1 else None
+    if confidence > CONFIDENCE_THRESHOLD or (
+        runner_up_confidence is not None
+        and runner_up_confidence - confidence < MIN_MATCH_MARGIN
+    ):
         return {'matched': False, 'staff_id': None, 'confidence': confidence, 'reason': 'low_confidence'}
 
     return {'matched': True, 'staff_id': label_map[label], 'confidence': confidence, 'reason': None}

@@ -1,45 +1,15 @@
 {% extends 'dashboard_layout.html' %}
 {% load static %}
 
-{% block title %}Attendance - FuelSync{% endblock %}
+{% block title %}Live Stream - FuelSync{% endblock %}
 
 {% block dashboard_extra_css %}
 <style>
-.attendance-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
-@media(max-width:900px){.attendance-grid{grid-template-columns:1fr;}}
-.card-body{padding:20px 22px;}
-.price-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid rgba(15,23,42,0.06);}
-.price-row:last-child{border-bottom:0;}
-.price-row label{flex:1;font-weight:600;color:#0f172a;font-size:0.9rem;}
-.price-row input{width:120px;padding:7px 10px;border:1px solid rgba(15,23,42,0.15);border-radius:8px;font-size:0.9rem;}
-.video-wrap{position:relative;background:#0f172a;border-radius:12px;overflow:hidden;aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;}
-.video-wrap video{width:100%;height:100%;object-fit:cover;}
-.video-placeholder{color:#94a3b8;font-size:0.85rem;text-align:center;padding:20px;}
-#captureStatus{margin-top:10px;font-size:0.85rem;min-height:1.2em;}
-.staff-enroll-list{display:flex;flex-direction:column;gap:0;}
-.staff-enroll-row{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid rgba(15,23,42,0.06);}
-.staff-enroll-row:last-child{border-bottom:0;}
-.staff-avatar{width:48px;height:48px;border-radius:50%;object-fit:cover;background:#e2e8f0;flex-shrink:0;}
-.staff-avatar-placeholder{width:48px;height:48px;border-radius:50%;background:#e2e8f0;color:#94a3b8;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;}
-.staff-enroll-info{flex:1;min-width:0;}
-.staff-enroll-name{font-weight:700;font-size:0.88rem;color:#0f172a;margin:0;}
-.staff-enroll-role{font-size:0.78rem;color:#64748b;margin:2px 0 0;}
-.staff-enroll-status{font-size:0.72rem;margin-top:3px;}
-.staff-photo-input{display:none;}
-.staff-photo-label{border:none;background:rgba(15,23,42,0.06);color:#334155;padding:6px 12px;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer;white-space:nowrap;}
-.staff-photo-label:hover{background:rgba(15,23,42,0.1);}
-.verified-banner{display:none;align-items:center;gap:12px;margin-top:12px;padding:14px 16px;border-radius:12px;background:rgba(22,163,74,0.1);border:1px solid rgba(22,163,74,0.25);}
-.verified-banner.show{display:flex;}
-.verified-icon{width:38px;height:38px;border-radius:50%;background:#16a34a;color:#fff;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;}
-.verified-title{margin:0;font-weight:700;font-size:0.92rem;color:#15803d;}
-.verified-detail{margin:2px 0 0;font-size:0.8rem;color:#166534;}
-.notif-row{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid rgba(15,23,42,0.06);}
-.notif-row:last-child{border-bottom:0;}
-.notif-title{font-weight:700;font-size:0.87rem;color:#0f172a;margin:0;}
-.notif-message{font-size:0.82rem;color:#64748b;margin:2px 0 0;}
-.notif-time{font-size:0.72rem;color:#94a3b8;margin-top:2px;}
-.btn-mini{border:none;background:rgba(15,23,42,0.06);color:#334155;padding:5px 12px;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer;white-space:nowrap;}
-.btn-mini:hover{background:rgba(15,23,42,0.1);}
+.stream-card{width:100%;}
+.stream-frame{position:relative;height:65vh;min-height:420px;background:#020617;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+.stream-frame img{display:block;width:100%;height:100%;object-fit:cover;}
+.stream-placeholder{position:absolute;color:#94a3b8;font-size:.95rem;text-align:center;padding:20px;}
+.stream-status{margin:12px 0 0;color:#64748b;font-size:.85rem;}
 </style>
 {% endblock %}
 
@@ -47,270 +17,21 @@
 <div class="page-shell">
     <div class="page-header">
         <div class="page-header-copy">
-            <h1 class="page-title">Attendance Kiosk</h1>
-            <p class="page-subtitle">Log staff attendance via face recognition and review activity.</p>
+            <h1 class="page-title">Live Stream</h1>
+            <p class="page-subtitle">View the live feed from the ESP32 camera.</p>
         </div>
     </div>
 
-    <form id="csrfForm" style="display:none;">{% csrf_token %}</form>
-
-    <div class="attendance-grid">
-        <!-- Live camera feed -->
-        <div class="content-card">
-            <div class="content-card-header">
-                <h2 class="content-card-title"><i class="bi bi-camera-video"></i> Live Camera Feed</h2>
-            </div>
-            <div class="card-body">
-                <div class="video-wrap">
-                    <video id="attendanceVideo" autoplay playsinline muted></video>
-                    <div id="videoPlaceholder" class="video-placeholder">Requesting camera access…</div>
-                </div>
-                <canvas id="captureCanvas" style="display:none;"></canvas>
-            </div>
-        </div>
-
-        <!-- Facial attendance -->
-        <div class="content-card">
-            <div class="content-card-header">
-                <h2 class="content-card-title"><i class="bi bi-person-check"></i> Facial Attendance</h2>
-            </div>
-            <div class="card-body">
-                <p style="color:#64748b;font-size:0.87rem;margin-top:0;">Have the staff member face the camera. The system will recognize them automatically and check them in or out.</p>
-                <button type="button" id="captureBtn" class="btn-action btn-action-primary" style="display:none;">
-                    <i class="bi bi-camera"></i> Capture &amp; Recognize
-                </button>
-                <div id="captureStatus"></div>
-                <div id="verifiedBanner" class="verified-banner">
-                    <div class="verified-icon"><i class="bi bi-check-lg"></i></div>
-                    <div>
-                        <p class="verified-title">Identity Verified</p>
-                        <p class="verified-detail" id="verifiedDetail"></p>
-                    </div>
-                </div>
-                <div id="noPhotoBanner" data-count="{{ staff_without_photo_count }}" style="margin-top:14px;font-size:0.8rem;color:#b45309;background:rgba(245,158,11,0.1);padding:10px 12px;border-radius:8px;{% if staff_without_photo_count == 0 %}display:none;{% endif %}">
-                    <i class="bi bi-exclamation-triangle"></i>
-                    <span id="noPhotoBannerText">{{ staff_without_photo_count }} active staff member{{ staff_without_photo_count|pluralize }} without a photo on file — upload one below to enable recognition.</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Staff photo enrollment -->
-    <div class="content-card">
+    <div class="content-card stream-card">
         <div class="content-card-header">
-            <h2 class="content-card-title"><i class="bi bi-person-badge"></i> Staff Photo Enrollment</h2>
-            <span class="content-card-count">{{ staff_list|length }} active staff</span>
+            <h2 class="content-card-title"><i class="bi bi-camera-video"></i> Live Stream</h2>
         </div>
         <div class="card-body">
-            <p style="color:#64748b;font-size:0.87rem;margin-top:0;">Upload a clear, front-facing photo for each staff member so they can be recognized at the kiosk.</p>
-            <div class="staff-enroll-list" id="staffEnrollList">
-                {% for staff in staff_list %}
-                <div class="staff-enroll-row" data-staff-id="{{ staff.id }}">
-                    {% if staff.profile_picture %}
-                    <img class="staff-avatar" id="staffAvatar{{ staff.id }}" src="{{ staff.profile_picture.url }}" alt="">
-                    {% else %}
-                    <div class="staff-avatar-placeholder" id="staffAvatar{{ staff.id }}"><i class="bi bi-person"></i></div>
-                    {% endif %}
-                    <div class="staff-enroll-info">
-                        <p class="staff-enroll-name">{{ staff.user.get_full_name|default:staff.user.username }}</p>
-                        <p class="staff-enroll-role">{{ staff.role.get_name_display }}</p>
-                        <p class="staff-enroll-status" id="staffPhotoStatus{{ staff.id }}" style="{% if staff.profile_picture %}color:#16a34a;{% else %}color:#b45309;{% endif %}">
-                            {% if staff.profile_picture %}Enrolled{% else %}No photo yet{% endif %}
-                        </p>
-                    </div>
-                    <label class="staff-photo-label" for="staffPhotoInput{{ staff.id }}">
-                        <i class="bi bi-upload"></i> {% if staff.profile_picture %}Replace{% else %}Upload{% endif %} Photo
-                    </label>
-                    <input type="file" accept="image/*" class="staff-photo-input" id="staffPhotoInput{{ staff.id }}" data-staff-id="{{ staff.id }}">
-                </div>
-                {% empty %}
-                <div class="empty-state"><i class="bi bi-person-badge"></i><p>No active staff members.</p></div>
-                {% endfor %}
+            <div class="stream-frame">
+                <img src="http://10.136.118.229/stream" alt="Live ESP32 camera stream">
             </div>
+            <p class="stream-status">Live ESP32 camera stream</p>
         </div>
     </div>
-
 </div>
-
-<script>
-(function(){
-    var csrftoken = document.querySelector('#csrfForm [name=csrfmiddlewaretoken]').value;
-
-    function postJson(url, body){
-        return fetch(url, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
-            credentials: 'same-origin',
-            body: JSON.stringify(body || {}),
-        }).then(function(r){ return r.json(); });
-    }
-
-    // --- Camera feed ---
-    var video = document.getElementById('attendanceVideo');
-    var placeholder = document.getElementById('videoPlaceholder');
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({ video: true }).then(function(stream){
-            video.srcObject = stream;
-            placeholder.style.display = 'none';
-            setTimeout(function(){ captureBtn.click(); }, 1200);
-        }).catch(function(err){
-            placeholder.textContent = 'Camera unavailable: ' + err.message;
-        });
-    } else {
-        placeholder.textContent = 'Camera not supported in this browser.';
-    }
-
-    // --- Capture & recognize ---
-    var captureBtn = document.getElementById('captureBtn');
-    var captureStatus = document.getElementById('captureStatus');
-    var canvas = document.getElementById('captureCanvas');
-    var verifiedBanner = document.getElementById('verifiedBanner');
-    var verifiedDetail = document.getElementById('verifiedDetail');
-    var verifiedHideTimer = null;
-
-    captureBtn.addEventListener('click', function(){
-        verifiedBanner.classList.remove('show');
-        if (!video.videoWidth) {
-            captureStatus.textContent = 'Camera feed not ready yet.';
-            return;
-        }
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-        var dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-
-        captureBtn.disabled = true;
-        captureStatus.textContent = 'Recognizing…';
-
-        postJson('{% url "dashboard_attendance_capture" %}', {image: dataUrl}).then(function(result){
-            captureBtn.disabled = false;
-            if (result.status === 'success') {
-                var label = result.event_type === 'clock_in' ? 'Checked in' : 'Checked out';
-                captureStatus.textContent = '';
-
-                verifiedDetail.textContent = result.staff_name + ' — ' + label + ' at ' + new Date(result.timestamp).toLocaleTimeString();
-                verifiedBanner.classList.add('show');
-                if (verifiedHideTimer) clearTimeout(verifiedHideTimer);
-                verifiedHideTimer = setTimeout(function(){ verifiedBanner.classList.remove('show'); }, 6000);
-
-                var tbody = document.getElementById('attendanceHistoryBody');
-                if (tbody) {
-                    var badge = result.event_type === 'clock_in'
-                        ? '<span class="badge badge-green">Check In</span>'
-                        : '<span class="badge badge-gray">Check Out</span>';
-                    var row = document.createElement('tr');
-                    row.innerHTML = '<td>' + result.staff_name + '</td><td>' + badge + '</td><td>' +
-                        result.date + '</td><td>' + result.time + '</td>';
-                    tbody.insertBefore(row, tbody.firstChild);
-                }
-            } else if (result.status === 'no_match') {
-                captureStatus.style.color = '#b45309';
-                var reasons = {
-                    no_face_detected: 'No face detected — face the camera and try again.',
-                    no_enrolled_staff: 'No staff enrolled with a photo yet.',
-                    low_confidence: 'Face not recognized.',
-                };
-                captureStatus.textContent = reasons[result.reason] || 'Not recognized.';
-            } else {
-                captureStatus.style.color = '#dc2626';
-                captureStatus.textContent = result.message || 'Something went wrong.';
-            }
-        }).catch(function(){
-            captureBtn.disabled = false;
-            captureStatus.style.color = '#dc2626';
-            captureStatus.textContent = 'Request failed. Try again.';
-        });
-    });
-
-    // --- Staff photo enrollment ---
-    document.querySelectorAll('.staff-photo-input').forEach(function(input){
-        input.addEventListener('change', function(){
-            var file = input.files && input.files[0];
-            if (!file) return;
-
-            var staffId = input.getAttribute('data-staff-id');
-            var status = document.getElementById('staffPhotoStatus' + staffId);
-            var avatar = document.getElementById('staffAvatar' + staffId);
-            var label = input.previousElementSibling;
-
-            status.style.color = '#64748b';
-            status.textContent = 'Uploading…';
-            if (label) label.style.pointerEvents = 'none';
-
-            var formData = new FormData();
-            formData.append('photo', file);
-
-            fetch('/dashboard/attendance/staff/' + staffId + '/photo/', {
-                method: 'POST',
-                headers: {'X-CSRFToken': csrftoken},
-                credentials: 'same-origin',
-                body: formData,
-            }).then(function(r){ return r.json(); }).then(function(result){
-                if (label) label.style.pointerEvents = '';
-                if (result.status === 'success') {
-                    var wasUnenrolled = status.textContent.trim() === 'No photo yet';
-                    status.style.color = '#16a34a';
-                    status.textContent = 'Enrolled';
-                    if (wasUnenrolled) {
-                        var banner = document.getElementById('noPhotoBanner');
-                        var bannerText = document.getElementById('noPhotoBannerText');
-                        var remaining = parseInt(banner.getAttribute('data-count'), 10) - 1;
-                        banner.setAttribute('data-count', remaining);
-                        if (remaining > 0) {
-                            bannerText.textContent = remaining + ' active staff member' + (remaining === 1 ? '' : 's') + ' without a photo on file — upload one below to enable recognition.';
-                        } else {
-                            banner.style.display = 'none';
-                        }
-                    }
-                    if (avatar) {
-                        if (avatar.tagName === 'IMG') {
-                            avatar.src = result.photo_url + '?t=' + Date.now();
-                        } else {
-                            var img = document.createElement('img');
-                            img.className = 'staff-avatar';
-                            img.id = avatar.id;
-                            img.src = result.photo_url;
-                            avatar.replaceWith(img);
-                        }
-                    }
-                    if (label) label.innerHTML = '<i class="bi bi-upload"></i> Replace Photo';
-                } else {
-                    status.style.color = '#dc2626';
-                    status.textContent = result.message || 'Upload failed.';
-                }
-            }).catch(function(){
-                if (label) label.style.pointerEvents = '';
-                status.style.color = '#dc2626';
-                status.textContent = 'Upload failed. Try again.';
-            });
-        });
-    });
-
-    // --- Notifications ---
-    function markRead(id){
-        return fetch('/api/v1/station/notifications/' + id + '/mark_as_read/', {
-            method: 'POST',
-            headers: {'X-CSRFToken': csrftoken},
-            credentials: 'same-origin',
-        });
-    }
-
-    document.querySelectorAll('.mark-read-btn').forEach(function(btn){
-        btn.addEventListener('click', function(){
-            markRead(btn.getAttribute('data-notification-id')).then(function(){ location.reload(); });
-        });
-    });
-
-    var markAllBtn = document.getElementById('markAllReadBtn');
-    if (markAllBtn) {
-        markAllBtn.addEventListener('click', function(){
-            fetch('/api/v1/station/notifications/mark_all_as_read/', {
-                method: 'POST',
-                headers: {'X-CSRFToken': csrftoken},
-                credentials: 'same-origin',
-            }).then(function(){ location.reload(); });
-        });
-    }
-})();
-</script>
 {% endblock %}

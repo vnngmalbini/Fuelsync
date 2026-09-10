@@ -172,7 +172,7 @@
             </a>
             {% if user.is_superuser or user.dashboard_profile.role == 'manager' %}
             <a href="{{ url_attendance }}" class="sidebar-link{% if request.path == url_attendance %} active{% endif %}">
-                <i class="bi bi-camera-video"></i><span>Attendance Kiosk</span>
+                <i class="bi bi-camera-video"></i><span>Live Stream</span>
             </a>
             {% endif %}
             <a href="{{ url_my_attendance }}" class="sidebar-link{% if request.path == url_my_attendance %} active{% endif %}">

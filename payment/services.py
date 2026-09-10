@@ -134,10 +134,17 @@ def build_receipt_pdf(transaction) -> bytes:
     ]
 
     created_at = timezone.localtime(transaction.created_at)
+    customer = getattr(transaction, 'customer', None)
+    payment = getattr(transaction, 'payment', None)
+    phone = getattr(customer, 'phone', '') or getattr(payment, 'customer_phone', '') or 'N/A'
+    amount = getattr(transaction, 'total_amount', None)
+    if amount is None:
+        amount = getattr(payment, 'amount', 0)
+    reference = transaction.reference_number or getattr(payment, 'reference', '')
     details = [
-        [Paragraph('Phone', label_style), Paragraph(str(transaction.phone), value_style)],
-        [Paragraph('Amount', label_style), Paragraph(f'GHS {transaction.amount:.2f}', value_style)],
-        [Paragraph('Reference', label_style), Paragraph(transaction.reference, value_style)],
+        [Paragraph('Phone', label_style), Paragraph(str(phone), value_style)],
+        [Paragraph('Amount', label_style), Paragraph(f'GHS {amount:.2f}', value_style)],
+        [Paragraph('Reference', label_style), Paragraph(reference, value_style)],
         [Paragraph('Status', label_style), Paragraph(transaction.status.title(), value_style)],
         [Paragraph('Date', label_style), Paragraph(created_at.strftime('%d %b %Y, %I:%M %p'), value_style)],
     ]
