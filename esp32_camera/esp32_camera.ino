@@ -5,7 +5,7 @@
 // Configure these locally before flashing. Do not commit real values.
 const char *WIFI_SSID = "Kalisha";
 const char *WIFI_PASSWORD = "26022021";
-const char *INGEST_URL = "http://10.136.118.145:8000/dashboard/attendance/camera/ingest/";
+const char *INGEST_URL = "http://10.229.111.145:8000/dashboard/attendance/camera/ingest/";
 const char *CAMERA_KEY = "esp32_camera_key_2024_smartfuel_secure_v1";
 const char *CAMERA_ID = "esp32-camera";
 
@@ -20,6 +20,10 @@ void setup() {
     Serial.print(".");
   }
   Serial.println("\nCamera connected");
+  Serial.print("Camera IP: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("Ingest URL: ");
+  Serial.println(INGEST_URL);
 }
 
 void loop() {
@@ -43,6 +47,10 @@ void loop() {
   http.addHeader("X-Camera-ID", CAMERA_ID);
   int status = http.POST(frame->buf, frame->len);
   Serial.printf("Frame upload status: %d\n", status);
+  if (status <= 0) {
+    Serial.print("Upload error: ");
+    Serial.println(http.errorToString(status).c_str());
+  }
   http.end();
   esp_camera_fb_return(frame);
   delay(250); // approximately 4 frames per second

@@ -32,10 +32,11 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,10.136.118.145', cast=lambda v: [h.strip() for h in v.split(',')])
-if '10.136.118.145' not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append('10.136.118.145')
-ESP32_CAMERA_STREAM_URL = config('ESP32_CAMERA_STREAM_URL', default='http://10.136.118.229/stream')
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,10.229.111.145,10.136.118.145', cast=lambda v: [h.strip() for h in v.split(',')])
+for host in ('10.229.111.145', '10.136.118.145', '127.0.0.1', 'localhost'):
+    if host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(host)
+ESP32_CAMERA_STREAM_URL = config('ESP32_CAMERA_STREAM_URL', default='http://10.229.111.229/stream')
 
 
 # Application definition

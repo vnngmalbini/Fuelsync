@@ -991,6 +991,7 @@ def attendance_dashboard_page(request):
         'attendance_rows': attendance_rows,
         'staff_list': staff_list,
         'staff_without_photo_count': total_active - enrolled_count,
+        'camera_stream_url': settings.ESP32_CAMERA_STREAM_URL,
     }
     return render(request, 'dashboard_attendance.html', context)
 

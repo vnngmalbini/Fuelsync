@@ -7,6 +7,7 @@ cached in-process and lazily rebuilt whenever the set of enrolled staff photos c
 import cv2
 import numpy as np
 from pathlib import Path
+import skimage.data
 
 from .models import Staff
 
@@ -16,6 +17,8 @@ FACE_SIZE = (200, 200)
 MIN_FACE_SIZE = (70, 70)
 
 _HAAR_PATH = Path(cv2.data.haarcascades) / 'haarcascade_frontalface_default.xml'
+if not _HAAR_PATH.is_file():
+    _HAAR_PATH = Path(skimage.data.__file__).parent / 'lbpcascade_frontalface_opencv.xml'
 _HAAR_CASCADE = cv2.CascadeClassifier(str(_HAAR_PATH)) if _HAAR_PATH.is_file() else None
 
 _recognizer_cache = {"recognizer": None, "label_to_staff_id": {}, "signature": None}
@@ -54,6 +57,25 @@ def detect_largest_face(gray_frame):
     return max(faces, key=lambda f: f[2] * f[3])
 
 
+def _detect_enrollment_face(gray_frame):
+    """Use a more tolerant pass for stored photos with uneven scale or lighting."""
+    if _HAAR_CASCADE is None or _HAAR_CASCADE.empty():
+        return None
+    box = detect_largest_face(gray_frame)
+    if box is not None:
+        return box
+    equalized = cv2.equalizeHist(gray_frame)
+    faces = _HAAR_CASCADE.detectMultiScale(
+        equalized,
+        scaleFactor=1.05,
+        minNeighbors=3,
+        minSize=(40, 40),
+    )
+    if len(faces) == 0:
+        return None
+    return max(faces, key=lambda f: f[2] * f[3])
+
+
 def _normalize_face(face):
     """Normalizes an inner face crop so hair, clothes, and lighting have less influence."""
     face = cv2.resize(face, FACE_SIZE, interpolation=cv2.INTER_AREA)
@@ -81,16 +103,37 @@ def _appearance_variants(face):
     ]
 
 
+def _training_variants(face):
+    """Build mild enrollment variations without changing the person's identity."""
+    normalized = _normalize_face(face)
+    darker = cv2.convertScaleAbs(normalized, alpha=0.82, beta=-8)
+    brighter = cv2.convertScaleAbs(normalized, alpha=1.15, beta=12)
+    shifted = cv2.warpAffine(
+        normalized,
+        np.float32([[1, 0, 3], [0, 1, 2]]),
+        FACE_SIZE,
+        borderMode=cv2.BORDER_REPLICATE,
+    )
+    return [
+        normalized,
+        cv2.flip(normalized, 1),
+        cv2.GaussianBlur(normalized, (3, 3), 0),
+        darker,
+        brighter,
+        shifted,
+    ]
+
+
 def _load_training_faces():
     faces, labels, label_map = [], [], {}
     for idx, staff in enumerate(_enrolled_staff_qs()):
         img = cv2.imread(staff.profile_picture.path, cv2.IMREAD_GRAYSCALE)
         if img is None:
             continue
-        box = detect_largest_face(img)
+        box = _detect_enrollment_face(img)
         if box is None:
             continue
-        variants = _appearance_variants(_inner_face_crop(img, box))
+        variants = _training_variants(_inner_face_crop(img, box))
         faces.extend(variants)
         labels.extend([idx] * len(variants))
         label_map[idx] = staff.id

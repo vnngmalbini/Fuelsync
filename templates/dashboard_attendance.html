@@ -28,10 +28,40 @@
         </div>
         <div class="card-body">
             <div class="stream-frame">
-                <img src="http://10.136.118.229/stream" alt="Live ESP32 camera stream">
+                <img id="cameraStreamImg" src="{{ camera_stream_url|default:'http://10.229.111.229/stream' }}" alt="Live ESP32 camera stream" onerror="handleStreamError(this)">
+                <div id="streamFallback" class="stream-placeholder" style="display:none;">
+                    <i class="bi bi-camera-video-off" style="font-size:2.5rem;display:block;margin-bottom:12px;opacity:0.6;"></i>
+                    <p style="font-weight:600;margin-bottom:4px;">Camera stream unavailable</p>
+                    <p style="color:#64748b;font-size:0.85rem;margin-bottom:14px;">Ensure the ESP32-CAM is powered and connected to Wi-Fi at {{ camera_stream_url|default:"http://10.229.111.229/stream" }}.</p>
+                    <button type="button" class="btn btn-sm btn-primary" onclick="retryStream()" style="padding:6px 16px;border-radius:6px;font-size:0.85rem;cursor:pointer;">
+                        <i class="bi bi-arrow-clockwise"></i> Retry Connection
+                    </button>
+                </div>
             </div>
             <p class="stream-status">Live ESP32 camera stream</p>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block dashboard_extra_js %}
+<script>
+function handleStreamError(img) {
+    img.style.display = 'none';
+    var fallback = document.getElementById('streamFallback');
+    if (fallback) fallback.style.display = 'block';
+}
+
+function retryStream() {
+    var img = document.getElementById('cameraStreamImg');
+    var fallback = document.getElementById('streamFallback');
+    if (fallback) fallback.style.display = 'none';
+    if (img) {
+        img.style.display = 'block';
+        var baseUrl = "{{ camera_stream_url|default:'http://10.229.111.229/stream' }}";
+        var separator = baseUrl.indexOf('?') === -1 ? '?' : '&';
+        img.src = baseUrl + separator + "t=" + new Date().getTime();
+    }
+}
+</script>
 {% endblock %}
